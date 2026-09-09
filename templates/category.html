@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{CATEGORY_TITLE}} | TRY-FIT</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    {{HEADER}}
+    
+    <main class="container section-padding">
+        <h1 style="font-family: var(--font-serif); font-size: 2.5rem; margin-bottom: 30px;">{{CATEGORY_TITLE}}</h1>
+        
+        <div class="category-layout">
+            <!-- Sidebar -->
+            <aside class="filters-sidebar">
+                <div class="filter-group">
+                    <h4>Category</h4>
+                    <div class="filter-option"><input type="checkbox"> <span>Shirts</span></div>
+                    <div class="filter-option"><input type="checkbox"> <span>Jeans</span></div>
+                    <div class="filter-option"><input type="checkbox"> <span>Dresses</span></div>
+                </div>
+                <div class="filter-group">
+                    <h4>Brand</h4>
+                    <div class="filter-option"><input type="checkbox"> <span>TRY-FIT Exclusive</span></div>
+                    <div class="filter-option"><input type="checkbox"> <span>Luxury Label</span></div>
+                </div>
+                <div class="filter-group">
+                    <h4>Size</h4>
+                    <div class="filter-option"><input type="checkbox"> <span>S</span></div>
+                    <div class="filter-option"><input type="checkbox"> <span>M</span></div>
+                    <div class="filter-option"><input type="checkbox"> <span>L</span></div>
+                    <div class="filter-option"><input type="checkbox"> <span>XL</span></div>
+                </div>
+            </aside>
+            
+            <!-- Grid -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                    <span style="font-size: 0.9rem; color: var(--muted);">Showing results</span>
+                    <select style="padding: 5px; border: 1px solid var(--border); background: var(--white); font-family: var(--font-sans);">
+                        <option>Sort by: Featured</option>
+                        <option>Price: Low to High</option>
+                        <option>Price: High to Low</option>
+                        <option>Newest Arrivals</option>
+                    </select>
+                </div>
+                
+                <div class="products-grid" style="margin-top: 0;">
+                    {{CATALOG_GRID}}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    {{FOOTER}}
+</body>
+</html>

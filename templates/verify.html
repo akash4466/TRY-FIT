@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Verify Identity</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh;">
+
+    <!-- HEADER -->
+    <header class="main-header" style="position: static; border-bottom: none;">
+        <div class="container nav-wrapper" style="justify-content: center;">
+            <a href="/" class="logo" style="font-size: 2rem;">TRY-FIT</a>
+        </div>
+    </header>
+
+    <main class="container" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
+        <div class="auth-container" style="margin: 0; width: 100%; max-width: 500px; padding: 60px 50px;">
+            
+            {{INFO_ALERT}}
+            {{ERROR_ALERT}}
+            
+            <div style="text-align: center; margin-bottom: 40px;">
+                <h2 style="font-size: 1.8rem; margin-bottom: 12px; letter-spacing: 1px;">Verify your account</h2>
+                <p style="color: var(--muted); font-size: 0.95rem; line-height: 1.6;">
+                    We sent a verification code to<br>
+                    <strong style="color: var(--primary);">{{MOBILE_NUMBER}}</strong>
+                </p>
+            </div>
+
+            <form method="POST" action="/api/verify-otp" autocomplete="off">
+                <input type="hidden" name="email" value="{{MOBILE_NUMBER}}">
+                <input type="hidden" name="purpose" value="{{PURPOSE}}">
+                <input type="hidden" name="name" value="{{NAME}}">
+
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label class="form-label" style="text-align: center; display: block; margin-bottom: 15px;">Enter your 6-digit verification code</label>
+                    <input type="text" name="otp" class="form-control" maxlength="6" inputmode="numeric" required autofocus style="text-align: center; font-size: 1.5rem; letter-spacing: 10px; font-weight: 600;" placeholder="------">
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; height: 50px;">Verify & Continue</button>
+            </form>
+
+            <div style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border);">
+                <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 10px;">Didn't receive the code?</p>
+                <form method="POST" action="/api/send-otp">
+                    <input type="hidden" name="email" value="{{MOBILE_NUMBER}}">
+                    <input type="hidden" name="purpose" value="{{PURPOSE}}">
+                    <input type="hidden" name="name" value="{{NAME}}">
+                    <div style="font-size: 0.85rem; margin-top: 10px;">
+                        <button type="submit" class="btn-text" style="font-weight: 600; text-decoration: underline;">Resend Code Now</button>
+                    </div>
+                </form>
+                
+                <div style="margin-top: 24px;">
+                    <a href="/account" style="font-size: 0.85rem; color: var(--muted); text-decoration: underline;">Use a different email address</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Dashboard & My Trials</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <!-- CSS Hidden Checkboxes for Interactions -->
+    <input type="checkbox" id="menu-toggle" class="hidden-toggle">
+    <input type="checkbox" id="search-toggle" class="hidden-toggle">
+
+    <!-- 1. HEADER -->
+    <header class="main-header">
+        <div class="container nav-wrapper">
+            <div class="nav-left">
+                <label for="menu-toggle" class="mobile-menu-btn nav-icon-btn" aria-label="Menu" style="cursor: pointer;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </label>
+                <a href="/dashboard?category=men#shop" class="nav-link">Men</a>
+                <a href="/dashboard?category=women#shop" class="nav-link">Women</a>
+                <label for="menu-toggle" class="nav-link" style="cursor: pointer;">Categories</label>
+                <label for="search-toggle" class="nav-icon-btn" aria-label="Search" style="cursor: pointer;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </label>
+            </div>
+            
+            <div class="nav-center">
+                <a href="/dashboard" class="logo">TRY-FIT</a>
+            </div>
+            
+            <div class="nav-right">
+                <a href="#active-trials" class="nav-icon-btn" aria-label="Active Trials">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                    <span class="badge-count" id="trial-count-badge">{{TRIAL_COUNT}}</span>
+                </a>
+                <div style="display: flex; align-items: center; gap: 12px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border);">
+                    <span style="font-size: 0.85rem; font-weight: 500;">{{USER_NAME}}</span>
+                    <form method="POST" action="/api/logout" style="margin: 0;">
+                        <button type="submit" class="btn-text" style="font-size: 0.75rem;">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. SLIDE-OUT NAVIGATION -->
+    <div class="modal-overlay" id="megaMenu">
+        <label for="menu-toggle" class="modal-backdrop-close" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer;"></label>
+        <div class="slide-menu" style="position: relative; z-index: 10;">
+            <div class="slide-menu-header">
+                <a href="/dashboard" class="logo" style="font-size: 1.4rem;">TRY-FIT</a>
+                <label for="menu-toggle" class="close-btn" style="cursor: pointer;">✕</label>
+            </div>
+            <div class="slide-menu-content">
+                <div class="menu-section">
+                    <h3>Men's Collection</h3>
+                    <a href="/dashboard?category=shirts#shop">Shirts & Suits</a>
+                    <a href="/dashboard?category=jackets#shop">Jackets & Hoodies</a>
+                    <a href="/dashboard?category=jeans#shop">Jeans & Trousers</a>
+                    <a href="/dashboard?category=shoes#shop">Footwear</a>
+                </div>
+                <div class="menu-section">
+                    <h3>Women's Collection</h3>
+                    <a href="/dashboard?category=dresses#shop">Dresses</a>
+                    <a href="/dashboard?category=handbags#shop">Handbags</a>
+                </div>
+                <div class="menu-section">
+                    <h3>Account</h3>
+                    <a href="#active-trials">My Active Trials ({{TRIAL_COUNT}})</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SEARCH MODAL -->
+    <div class="search-modal" id="searchModal">
+        <form class="search-input-wrapper" method="GET" action="/search">
+            <input type="text" name="q" class="search-input" placeholder="Search curated catalog..." required>
+            <button type="submit" style="position: absolute; right: 50px; top: 24px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--primary);">SEARCH</button>
+            <label for="search-toggle" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--primary);">✕</label>
+        </form>
+    </div>
+
+    {{MESSAGE_ALERT}}
+
+    <!-- DASHBOARD HEADER & STATS -->
+    <section class="dashboard-header">
+        <div class="container">
+            <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Good morning, {{USER_NAME}}</h1>
+            <p style="color: var(--muted);">Manage your TRY-FIT experience</p>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Active Trials</h3>
+                    <div class="value">{{TRIAL_COUNT}}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed Trials</h3>
+                    <div class="value">{{BOUGHT_COUNT}}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Returned Items</h3>
+                    <div class="value">{{RETURNED_COUNT}}</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ACTIVE TRIALS SECTION -->
+    <section class="container section-padding" id="active-trials">
+        <h2 style="font-size: 1.8rem; margin-bottom: 30px;">Active Trials</h2>
+        <div id="trials-container">
+            {{TRIALS_GRID}}
+        </div>
+    </section>
+
+    <!-- CATEGORY NAVIGATION -->
+    <nav class="category-nav-bar" id="shop">
+        <div class="container">
+            <div class="category-tabs">
+                <a href="/dashboard?category=all#shop" class="cat-tab {{CAT_ACTIVE_all}}">ALL</a>
+                <a href="/dashboard?category=men#shop" class="cat-tab {{CAT_ACTIVE_men}}">MEN</a>
+                <a href="/dashboard?category=women#shop" class="cat-tab {{CAT_ACTIVE_women}}">WOMEN</a>
+                <a href="/dashboard?category=shirts#shop" class="cat-tab {{CAT_ACTIVE_shirts}}">SHIRTS</a>
+                <a href="/dashboard?category=jackets#shop" class="cat-tab {{CAT_ACTIVE_jackets}}">JACKETS</a>
+                <a href="/dashboard?category=jeans#shop" class="cat-tab {{CAT_ACTIVE_jeans}}">JEANS</a>
+                <a href="/dashboard?category=shoes#shop" class="cat-tab {{CAT_ACTIVE_shoes}}">SHOES</a>
+                <a href="/dashboard?category=dresses#shop" class="cat-tab {{CAT_ACTIVE_dresses}}">DRESSES</a>
+                <a href="/dashboard?category=handbags#shop" class="cat-tab {{CAT_ACTIVE_handbags}}">HANDBAGS</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- PRODUCT CATALOG -->
+    <main class="container">
+        <!-- Dynamic Product Grid -->
+        <div class="products-grid" id="catalog-container" style="margin-top: 40px; margin-bottom: 100px;">
+            {{CATALOG_GRID}}
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="main-footer">
+        <div class="container footer-grid">
+            <div class="footer-brand">
+                <h2 class="logo" style="margin-bottom: 16px;">TRY-FIT</h2>
+                <p style="color: var(--muted); font-size: 0.9rem; line-height: 1.6; max-width: 300px;">
+                    Curated high fashion delivered directly to your doorstep. Experience your style before you buy.
+                </p>
+            </div>
+            <div class="footer-col">
+                <h4>Shop</h4>
+                <a href="/dashboard?category=men#shop">Men</a>
+                <a href="/dashboard?category=women#shop">Women</a>
+                <a href="/dashboard?category=all#shop">Collections</a>
+            </div>
+            <div class="footer-col">
+                <h4>Support</h4>
+                <a href="/page?id=contact">Contact Us</a>
+                <a href="/page?id=shipping">Shipping</a>
+                <a href="/page?id=returns">Returns</a>
+                <a href="/page?id=faq">FAQ</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/page?id=about">About</a>
+                <a href="/page?id=terms">Terms</a>
+                <a href="/page?id=privacy">Privacy</a>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <p>&copy; 2026 TRY-FIT. All Rights Reserved.</p>
+        </div>
+    </footer>
+    <!-- 3D Logout Modal -->
+    <div class="logout-modal-overlay" id="customLogoutModal">
+        <div class="logout-modal">
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to log out of your account?</p>
+            <div class="logout-modal-actions">
+                <button class="btn-3d btn-3d-cancel" id="cancelLogoutBtn">Cancel</button>
+                <button class="btn-3d btn-3d-ok" id="confirmLogoutBtn">Log Out</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const logoutForms = document.querySelectorAll('form[action="/api/logout"]');
+            const modal = document.getElementById('customLogoutModal');
+            const cancelBtn = document.getElementById('cancelLogoutBtn');
+            const confirmBtn = document.getElementById('confirmLogoutBtn');
+            let currentForm = null;
+
+            logoutForms.forEach(form => {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    currentForm = form;
+                    modal.classList.add('active');
+                });
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+                currentForm = null;
+            });
+
+            confirmBtn.addEventListener('click', () => {
+                if (currentForm) {
+                    currentForm.submit();
+                }
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if(e.target === modal) {
+                    modal.classList.remove('active');
+                    currentForm = null;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

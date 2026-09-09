@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Search Results</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    
+    <!-- CSS Hidden Checkboxes for Interactions -->
+    <input type="checkbox" id="menu-toggle" class="hidden-toggle">
+    <input type="checkbox" id="search-toggle" class="hidden-toggle">
+
+    <!-- HEADER -->
+    <header class="main-header">
+        <div class="container nav-wrapper">
+            <div class="nav-left">
+                <label for="menu-toggle" class="mobile-menu-btn nav-icon-btn" aria-label="Menu" style="cursor: pointer;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </label>
+                <a href="/?category=men#shop" class="nav-link">Men</a>
+                <a href="/?category=women#shop" class="nav-link">Women</a>
+                <label for="search-toggle" class="nav-icon-btn" aria-label="Search" style="cursor: pointer;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </label>
+            </div>
+            <div class="nav-center">
+                <a href="/" class="logo">TRY-FIT</a>
+            </div>
+            <div class="nav-right">
+                <a href="/account" class="nav-link" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                    <span>Sign In / Create Account</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 20px; height: 20px; stroke-width: 1.5;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- SEARCH MODAL -->
+    <div class="search-modal" id="searchModal">
+        <form class="search-input-wrapper" method="GET" action="/search">
+            <input type="text" name="q" class="search-input" placeholder="Search curated catalog..." required>
+            <button type="submit" style="position: absolute; right: 50px; top: 24px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--primary);">SEARCH</button>
+            <label for="search-toggle" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--primary);">✕</label>
+        </form>
+    </div>
+
+    <!-- SLIDE-OUT NAVIGATION -->
+    <div class="modal-overlay" id="megaMenu">
+        <label for="menu-toggle" class="modal-backdrop-close" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer;"></label>
+        <div class="slide-menu" style="position: relative; z-index: 10;">
+            <div class="slide-menu-header">
+                <a href="/" class="logo" style="font-size: 1.4rem;">TRY-FIT</a>
+                <label for="menu-toggle" class="close-btn" style="cursor: pointer;">✕</label>
+            </div>
+            <div class="slide-menu-content">
+                <div class="menu-section">
+                    <h3>Collections</h3>
+                    <a href="/?category=men#shop">Men</a>
+                    <a href="/?category=women#shop">Women</a>
+                </div>
+                <div class="menu-section">
+                    <h3>Account</h3>
+                    <a href="/dashboard">Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="container section-padding">
+        <div style="text-align: center; margin-bottom: 60px;">
+            <p style="color: var(--muted); text-transform: uppercase; letter-spacing: 2px; font-size: 0.85rem; font-weight: 600;">Search Results</p>
+            <h1 style="font-size: 2.5rem; margin-top: 10px;">"{{SEARCH_QUERY}}"</h1>
+        </div>
+
+        <div class="products-grid" id="catalog-container">
+            {{CATALOG_GRID}}
+        </div>
+        
+        <div style="text-align: center; margin-top: 60px;">
+            <a href="/" class="btn-secondary">View All Collection</a>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="main-footer" style="margin-top: 40px;">
+        <div class="container footer-bottom">
+            <p>&copy; 2026 TRY-FIT. All Rights Reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

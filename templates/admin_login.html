@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Admin Secure Login</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh; background: var(--white);">
+
+    <main class="container" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
+        <div class="auth-container" style="margin: 0; width: 100%; max-width: 460px; padding: 60px 50px;">
+            
+            <div style="text-align: center; margin-bottom: 40px;">
+                <a href="/" class="logo" style="font-size: 2rem; display: block; margin-bottom: 24px;">TRY-FIT</a>
+                <h2 style="font-size: 1.4rem; margin-bottom: 8px; letter-spacing: 1px;">Admin Portal</h2>
+                <p style="color: var(--muted); font-size: 0.85rem;">Authorized personnel only</p>
+            </div>
+
+            {{MESSAGE_ALERT}}
+
+            <form method="POST" action="/api/admin/login" autocomplete="off">
+                <div class="form-group">
+                    <label class="form-label" for="email">Admin Email</label>
+                    <input type="email" id="email" name="email" class="form-control" required placeholder="admin@tryfit.com" value="admin@tryfit.com">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label class="form-label" for="password">Security Key</label>
+                    <input type="password" id="password" name="password" class="form-control" required placeholder="••••••••">
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width: 100%; height: 50px;">Secure Login</button>
+            </form>
+
+            <div style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border);">
+                <a href="/" style="font-size: 0.85rem; color: var(--muted); text-decoration: underline;">&larr; Return to Main Site</a>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

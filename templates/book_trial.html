@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Book Home Trial for {{CLOTH_NAME}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header class="main-header">
+        <div class="container nav-wrapper">
+            <div class="nav-left">
+                <a href="/dashboard" class="btn-text" style="font-size: 0.75rem;">&larr; Back to Dashboard</a>
+            </div>
+            <div class="nav-center">
+                <a href="/" class="logo">TRY-FIT</a>
+            </div>
+            <div class="nav-right">
+                <a href="/dashboard" class="nav-icon-btn" aria-label="Account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container section-padding">
+        
+        <div class="step-indicator">
+            <div class="step">01. Select Item</div>
+            <div class="step active">02. Trial Details</div>
+            <div class="step">03. Confirmation</div>
+        </div>
+
+        <div class="booking-grid">
+            
+            <!-- Left Side: Product Summary -->
+            <div>
+                <h2 style="font-size: 2.2rem; margin-bottom: 40px;">Review your trial</h2>
+                <div class="checkout-summary">
+                    <img src="{{CLOTH_IMAGE}}" alt="{{CLOTH_NAME}}">
+                    <div>
+                        <span class="product-category" style="display: block;">{{CLOTH_CATEGORY}}</span>
+                        <h3 style="font-family: var(--font-serif); font-size: 1.4rem; margin: 8px 0;">{{CLOTH_NAME}}</h3>
+                        <p style="font-size: 0.95rem; color: var(--muted); margin-bottom: 8px;">Size: M</p>
+                        <p style="font-size: 0.95rem; color: var(--muted);">Retail Price: <strong style="color: var(--primary);">₹{{CLOTH_PRICE}}</strong></p>
+                    </div>
+                </div>
+                <div style="margin-top: 40px;">
+                    <h4 style="font-family: var(--font-serif); font-size: 1.2rem; margin-bottom: 16px;">How it works</h4>
+                    <ul style="list-style: none; color: var(--muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 12px;">
+                        <li style="display: flex; gap: 12px;"><span style="color: var(--primary);">✓</span> Receive your item via premium delivery.</li>
+                        <li style="display: flex; gap: 12px;"><span style="color: var(--primary);">✓</span> Try it in the comfort of your home.</li>
+                        <li style="display: flex; gap: 12px;"><span style="color: var(--primary);">✓</span> Keep what you love, return the rest.</li>
+                        <li style="display: flex; gap: 12px;"><span style="color: var(--primary);">✓</span> Free pickup included in the trial fee.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right Side: Booking Form -->
+            <div>
+                <div class="checkout-card">
+                    <h3 style="font-size: 1.4rem; margin-bottom: 24px;">Trial Details</h3>
+                    
+                    <form method="POST" action="/api/book-trial">
+                        <input type="hidden" name="cloth_id" value="{{CLOTH_ID}}">
+                        
+                        <div class="form-group" style="margin-bottom: 30px;">
+                            <label class="form-label" for="duration_days">Select Duration</label>
+                            <select id="duration_days" name="duration_days" class="form-control" required style="cursor: pointer; appearance: none;">
+                                <option value="3" selected>3 Days Trial (₹130 Fee)</option>
+                                <option value="7">7 Days Trial (₹180 Fee)</option>
+                            </select>
+                            <div style="position: relative;">
+                                <span style="position: absolute; right: 16px; top: -38px; pointer-events: none;">▼</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 40px;">
+                            <label class="form-label" for="address">Delivery & Pickup Address</label>
+                            <textarea id="address" name="address" class="form-control" rows="4" required placeholder="Enter full home address..." style="resize: vertical;"></textarea>
+                        </div>
+
+                        <div style="background: var(--background); padding: 20px; border: 1px solid var(--border); margin-bottom: 30px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9rem; color: var(--muted);">
+                                <span>Subtotal</span>
+                                <span>₹0</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9rem; color: var(--muted);">
+                                <span>Delivery</span>
+                                <span>Included</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 600; padding-top: 12px; border-top: 1px solid var(--border);">
+                                <span>Trial Fee</span>
+                                <span>As selected above</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary" style="width: 100%;">Confirm Trial Booking</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="main-footer" style="margin-top: 0;">
+        <div class="container footer-bottom">
+            <p>&copy; 2026 TRY-FIT. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

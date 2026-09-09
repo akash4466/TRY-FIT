@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="display: flex; min-height: 100vh; background: var(--background);">
+
+    <!-- Sidebar -->
+    <aside style="width: 280px; background: var(--white); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 40px 30px;">
+        <div style="margin-bottom: 60px;">
+            <a href="/" class="logo" style="font-size: 1.8rem; display: block; margin-bottom: 4px;">TRY-FIT</a>
+            <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--muted);">Admin Portal</span>
+        </div>
+        
+        <nav style="display: flex; flex-direction: column; gap: 12px; flex: 1;">
+            <a href="/admin/dashboard" class="btn-text" style="display: block; width: 100%; text-align: left; padding: 12px 0;">Dashboard Overview</a>
+            <a href="/admin/catalog" class="btn-text" style="display: block; width: 100%; text-align: left; padding: 12px 0; color: var(--muted);">Manage Catalog</a>
+            <a href="/admin/users" class="btn-text" style="display: block; width: 100%; text-align: left; padding: 12px 0; color: var(--muted);">User Accounts</a>
+            <a href="/admin/trials" class="btn-text" style="display: block; width: 100%; text-align: left; padding: 12px 0; color: var(--muted);">Active Trials</a>
+        </nav>
+        
+        <form method="POST" action="/api/logout" style="margin-top: auto;">
+            <button type="submit" class="btn-secondary" style="width: 100%;">Secure Logout</button>
+        </form>
+    </aside>
+
+    <!-- Main Content -->
+    <main style="flex: 1; padding: 60px 80px; overflow-y: auto;">
+        
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 50px;">
+            <div>
+                <h1 style="font-size: 2.2rem; margin-bottom: 8px;">Admin Overview</h1>
+                <p style="color: var(--muted); font-size: 0.95rem;">System status and high-level metrics</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: var(--white); border: 1px solid var(--border);">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></div>
+                <span style="font-family: var(--font-sans); font-size: 0.85rem; font-weight: 600;">System Operational</span>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <section class="stats-grid" style="margin-top: 0; margin-bottom: 50px;">
+            <div class="stat-card" style="background: var(--white);">
+                <h3>Total Registered Users</h3>
+                <div class="value">{{USERS_COUNT}}</div>
+            </div>
+            <div class="stat-card" style="background: var(--white);">
+                <h3>Active Catalog Items</h3>
+                <div class="value">{{CLOTHES_COUNT}}</div>
+            </div>
+            <div class="stat-card" style="background: var(--white);">
+                <h3>Ongoing Home Trials</h3>
+                <div class="value">{{TRIALS_COUNT}}</div>
+            </div>
+        </section>
+
+        <!-- Recent Activity -->
+        <section style="background: var(--white); border: 1px solid var(--border); padding: 40px;">
+            <h2 style="font-size: 1.4rem; margin-bottom: 24px;">Recent System Activity</h2>
+            <div class="empty-state" style="border: 1px dashed var(--border); background: var(--background);">
+                <p style="margin: 0;">No recent critical activity to display.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 3D Logout Modal -->
+    <div class="logout-modal-overlay" id="customLogoutModal">
+        <div class="logout-modal">
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to log out of your account?</p>
+            <div class="logout-modal-actions">
+                <button class="btn-3d btn-3d-cancel" id="cancelLogoutBtn">Cancel</button>
+                <button class="btn-3d btn-3d-ok" id="confirmLogoutBtn">Log Out</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const logoutForms = document.querySelectorAll('form[action="/api/logout"]');
+            const modal = document.getElementById('customLogoutModal');
+            const cancelBtn = document.getElementById('cancelLogoutBtn');
+            const confirmBtn = document.getElementById('confirmLogoutBtn');
+            let currentForm = null;
+
+            logoutForms.forEach(form => {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    currentForm = form;
+                    modal.classList.add('active');
+                });
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+                currentForm = null;
+            });
+
+            confirmBtn.addEventListener('click', () => {
+                if (currentForm) {
+                    currentForm.submit();
+                }
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if(e.target === modal) {
+                    modal.classList.remove('active');
+                    currentForm = null;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

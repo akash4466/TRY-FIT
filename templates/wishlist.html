@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wishlist | TRY-FIT</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    {{HEADER}}
+    
+    <main class="container section-padding">
+        <h1 style="font-family: var(--font-serif); font-size: 2.5rem; margin-bottom: 30px;">Your Wishlist</h1>
+        
+        {{MESSAGE_ALERT}}
+        
+        <div class="products-grid">
+            {{WISHLIST_ITEMS}}
+        </div>
+    </main>
+
+    {{FOOTER}}
+</body>
+</html>

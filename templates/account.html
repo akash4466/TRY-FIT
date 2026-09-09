@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Sign In or Create Account</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh;">
+
+    {{HEADER}}
+
+    <main class="container" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
+        <div class="auth-container" style="margin: 0; width: 100%; max-width: 500px; padding: 60px 50px;">
+            
+            {{INFO_ALERT}}
+            {{ERROR_ALERT}}
+            
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="font-size: 2rem; margin-bottom: 8px;">Welcome Back</h2>
+                <p style="color: var(--muted); font-size: 0.9rem;">Sign in or create an account</p>
+            </div>
+            
+            <form method="POST" action="/api/send-otp" autocomplete="off">
+                <input type="hidden" name="purpose" value="login">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-control" required placeholder="name@example.com">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Continue</button>
+            </form>
+
+            <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">Don't have an account?</p>
+                <form method="POST" action="/api/send-otp" autocomplete="off">
+                    <input type="hidden" name="purpose" value="register">
+                    <div class="form-group">
+                        <input type="text" name="name" class="form-control" required placeholder="Full Name" style="margin-bottom: 12px; padding: 12px;">
+                        <input type="email" name="email" class="form-control" required placeholder="Email Address" style="padding: 12px;">
+                    </div>
+                    <button type="submit" class="btn-secondary" style="width: 100%;">Create Account</button>
+                </form>
+            </div>
+            
+        </div>
+    </main>
+
+    <div style="text-align: center; padding-bottom: 40px;">
+        <a href="/" style="font-size: 0.85rem; color: var(--muted); text-decoration: underline;">&larr; Return to Shop</a>
+    </div>
+
+    {{FOOTER}}
+</body>
+</html>

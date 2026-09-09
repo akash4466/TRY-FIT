@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}} | TRY-FIT Admin</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh; background: var(--white);">
+    {{HEADER}}
+
+    <main class="container" style="flex: 1; padding: 60px 20px; text-align: center;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 20px; color: var(--primary);">{{TITLE}}</h1>
+        <p style="font-size: 1.1rem; color: var(--muted); margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            The <strong>{{TITLE}}</strong> management interface is currently under construction. This module will be released in the upcoming administration panel update.
+        </p>
+        
+        <div style="display: flex; justify-content: center; gap: 20px;">
+            <a href="/admin/dashboard" class="btn-secondary">&larr; Back to Dashboard</a>
+        </div>
+    </main>
+
+    {{FOOTER}}
+</body>
+</html>
