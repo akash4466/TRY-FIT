@@ -14,9 +14,9 @@ PORT = int(os.environ.get('PORT', 8000))
 OTP_PROVIDER = 'gmail'
 
 # Gmail SMTP settings (used when OTP_PROVIDER = 'gmail')
-GMAIL_USER = 'tryfit.project@gmail.com' # Your Gmail address
-GMAIL_APP_PASSWORD = 'uuka qfph tiyq ctsg' # Your Gmail App password
-
+# Gmail SMTP settings
+GMAIL_USER = os.environ.get('GMAIL_USER', '')
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 # Twilio credentials
 TWILIO_ACCOUNT_SID = 'your_account_sid'
 TWILIO_AUTH_TOKEN = 'your_auth_token'
