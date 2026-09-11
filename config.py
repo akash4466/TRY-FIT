@@ -11,3 +11,5 @@ DB_NAME = os.environ.get('DB_NAME', 'try-fit')
 PORT = int(os.environ.get('PORT', 8000))
 
 # OTP Delivery settings
+GMAIL_USER = os.environ.get('GMAIL_USER', '')
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
