@@ -15,6 +15,10 @@ GMAIL_USER = os.environ.get('GMAIL_USER', '')
 GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
+BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', '')
+BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME', 'TRY-FIT')
+
 # Email service
 EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER', 'resend')
 SENDER_EMAIL = os.environ.get(
