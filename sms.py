@@ -1,8 +1,14 @@
 import urllib.request
 import urllib.parse
+import urllib.error
 import json
 import base64
+import smtplib
+import ssl
 import config
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 def format_mobile_number(num):
@@ -17,18 +23,8 @@ def format_mobile_number(num):
     return clean
 
 
-def send_gmail_otp(to_email, otp):
-    """
-    Send TRY-FIT OTP using Resend Email API.
-
-    Function name is kept as send_gmail_otp()
-    so existing server.py does not need to change.
-    """
-
-    if not config.RESEND_API_KEY:
-        return False, "Resend API key is not configured."
-
-    message_html = f"""
+def build_otp_html(otp):
+    return f"""
     <html>
     <body style="font-family: Arial, sans-serif; background-color: #0a0a0f; color: #f9fafb; padding: 20px; text-align: center;">
         <div style="max-width: 480px; margin: 0 auto; background-color: #12121c; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
@@ -60,50 +56,206 @@ def send_gmail_otp(to_email, otp):
     </html>
     """
 
-    try:
-        import requests
 
-        url = "https://api.resend.com/emails"
+def send_gmail_otp(to_email, otp):
+    """
+    Send TRY-FIT OTP.
 
-        headers = {
-            "Authorization": f"Bearer {config.RESEND_API_KEY}",
-            "Content-Type": "application/json"
-        }
+    Primary:
+        Resend API
 
-        data = {
-            "from": "TRY-FIT <onboarding@resend.dev>",
-            "to": [to_email],
-            "subject": f"TRY-FIT Verification Code: {otp}",
-            "html": message_html
-        }
+    Fallback:
+        Gmail SMTP
 
-        response = requests.post(
-            url,
-            headers=headers,
-            json=data,
-            timeout=15
+    Gmail credentials are read only from environment variables
+    through config.py.
+    """
+
+    subject = f"TRY-FIT Verification Code: {otp}"
+
+    message_html = build_otp_html(otp)
+
+    plain_message = f"""
+TRY-FIT
+
+Security Verification Code
+
+Your TRY-FIT verification code is:
+
+{otp}
+
+This code is valid for 5 minutes.
+
+If you did not request this code, please ignore this email.
+Do not share this verification code with anyone.
+"""
+
+    # ============================================================
+    # 1. TRY RESEND FIRST
+    # ============================================================
+
+    if config.RESEND_API_KEY:
+        try:
+            import requests
+
+            url = "https://api.resend.com/emails"
+
+            headers = {
+                "Authorization": f"Bearer {config.RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            }
+
+            sender_email = getattr(
+                config,
+                "SENDER_EMAIL",
+                "TRY-FIT <onboarding@resend.dev>"
+            )
+
+            data = {
+                "from": sender_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": message_html
+            }
+
+            response = requests.post(
+                url,
+                headers=headers,
+                json=data,
+                timeout=15
+            )
+
+            if response.status_code in (200, 201):
+                print(
+                    f"[EMAIL OTP] Resend sent email successfully "
+                    f"to {to_email}"
+                )
+
+                return (
+                    True,
+                    "Verification code sent to your email address."
+                )
+
+            # Resend rejected the request.
+            # Do NOT expose the full Resend error to the user.
+            print(
+                f"[EMAIL OTP] Resend failed for {to_email}. "
+                f"Status: {response.status_code}. "
+                f"Trying Gmail SMTP fallback."
+            )
+
+        except Exception as e:
+            print(
+                f"[EMAIL OTP] Resend exception: {str(e)}. "
+                f"Trying Gmail SMTP fallback."
+            )
+
+    else:
+        print(
+            "[EMAIL OTP] Resend API key is not configured. "
+            "Trying Gmail SMTP fallback."
         )
 
-        if response.status_code in (200, 201):
-            print(f"[EMAIL OTP] Email sent successfully to {to_email}")
-            return True, "Verification code sent to your email address."
+    # ============================================================
+    # 2. GMAIL SMTP FALLBACK
+    # ============================================================
 
-        try:
-            error_data = response.json()
-            error_message = error_data.get("message", response.text)
-        except Exception:
-            error_message = response.text
+    gmail_user = getattr(config, "GMAIL_USER", "")
+    gmail_password = getattr(config, "GMAIL_APP_PASSWORD", "")
 
-        return False, f"Resend API Error: {error_message}"
+    if not gmail_user:
+        return False, "Email service is not configured."
 
-    except requests.exceptions.Timeout:
-        return False, "Resend API request timed out."
+    if not gmail_password:
+        return False, "Email service is not configured."
 
-    except requests.exceptions.RequestException as e:
-        return False, f"Resend Connection Error: {str(e)}"
+    try:
+        msg = MIMEMultipart("alternative")
+
+        msg["From"] = gmail_user
+        msg["To"] = to_email
+        msg["Subject"] = subject
+
+        msg.attach(
+            MIMEText(
+                plain_message,
+                "plain",
+                "utf-8"
+            )
+        )
+
+        msg.attach(
+            MIMEText(
+                message_html,
+                "html",
+                "utf-8"
+            )
+        )
+
+        context = ssl.create_default_context()
+
+        with smtplib.SMTP(
+            "smtp.gmail.com",
+            587,
+            timeout=20
+        ) as server:
+
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+
+            server.login(
+                gmail_user,
+                gmail_password
+            )
+
+            server.sendmail(
+                gmail_user,
+                [to_email],
+                msg.as_string()
+            )
+
+        print(
+            f"[EMAIL OTP] Gmail SMTP sent email successfully "
+            f"to {to_email}"
+        )
+
+        return (
+            True,
+            "Verification code sent to your email address."
+        )
+
+    except smtplib.SMTPAuthenticationError:
+        print(
+            "[EMAIL OTP] Gmail authentication failed. "
+            "Check GMAIL_USER and GMAIL_APP_PASSWORD "
+            "environment variables."
+        )
+
+        return (
+            False,
+            "Email service authentication failed."
+        )
+
+    except smtplib.SMTPException as e:
+        print(
+            f"[EMAIL OTP] Gmail SMTP error: {str(e)}"
+        )
+
+        return (
+            False,
+            "Email service is temporarily unavailable."
+        )
 
     except Exception as e:
-        return False, f"Email Error: {str(e)}"
+        print(
+            f"[EMAIL OTP] Gmail connection error: {str(e)}"
+        )
+
+        return (
+            False,
+            "Email service is temporarily unavailable."
+        )
 
 
 def send_twilio_sms(to_number, otp):
@@ -222,8 +374,8 @@ def send_otp(recipient, otp, email_address=None):
         return send_gmail_otp(target_email, otp)
 
     # Fallback log
-    print(f"\n==========================================")
+    print("\n==========================================")
     print(f"[OTP LOG] Verification OTP for {recipient}: {otp}")
-    print(f"==========================================\n")
+    print("==========================================\n")
 
     return True, f"Verification OTP: {otp}"
