@@ -38,6 +38,48 @@ class SMTPProvider(BaseEmailProvider):
             return False, f"SMTP exception: {str(e)}"
 
 
+class ResendEmailProvider(BaseEmailProvider):
+    """Resend HTTPS API Email Provider Implementation."""
+
+    def send_email(self, to_email: str, subject: str, message: str) -> tuple[bool, str]:
+        if not config.RESEND_API_KEY:
+            return False, "Resend API key is not configured."
+
+        try:
+            import requests
+
+            url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {config.RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "from": config.SENDER_EMAIL or "TRY-FIT <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "text": message
+            }
+
+            response = requests.post(url, headers=headers, json=data, timeout=15)
+            if response.status_code in (200, 201):
+                return True, "Email sent via Resend API"
+
+            try:
+                err_data = response.json()
+                err_msg = err_data.get("message", response.text)
+            except Exception:
+                err_msg = response.text
+
+            return False, f"Resend API Error: {err_msg}"
+
+        except requests.exceptions.Timeout:
+            return False, "Resend API request timed out."
+        except requests.exceptions.RequestException as e:
+            return False, f"Resend Connection Error: {str(e)}"
+        except Exception as e:
+            return False, f"Resend Error: {str(e)}"
+
+
 class ConsoleEmailProvider(BaseEmailProvider):
     """Console / Local Development Email Simulator Provider."""
 
@@ -56,7 +98,9 @@ class EmailServiceFactory:
     @staticmethod
     def get_provider() -> BaseEmailProvider:
         provider_name = getattr(config, 'EMAIL_PROVIDER', 'console').lower().strip()
-        if provider_name == 'smtp':
+        if provider_name == 'resend':
+            return ResendEmailProvider()
+        elif provider_name == 'smtp':
             return SMTPProvider()
         else:
             return ConsoleEmailProvider()

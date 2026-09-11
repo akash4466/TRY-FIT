@@ -25,14 +25,20 @@ class Config:
     OTP_COOLDOWN_SECONDS = int(os.getenv('OTP_COOLDOWN_SECONDS', 30))
     OTP_MAX_ATTEMPTS = int(os.getenv('OTP_MAX_ATTEMPTS', 5))
     
-    # Email / SMTP Configuration
+    # Email / Resend / SMTP Configuration
+    RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
     SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
     SMTP_USERNAME = os.getenv('SMTP_USERNAME', '')
     SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
-    SENDER_EMAIL = os.getenv('SENDER_EMAIL', SMTP_USERNAME)
+    SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'TRY-FIT <onboarding@resend.dev>' if RESEND_API_KEY else SMTP_USERNAME)
     
-    # Use console logging if no SMTP_USERNAME is provided
-    EMAIL_PROVIDER = 'smtp' if SMTP_USERNAME else 'console'
+    # Provider selection: resend > smtp > console
+    if RESEND_API_KEY:
+        EMAIL_PROVIDER = os.getenv('EMAIL_PROVIDER', 'resend')
+    elif SMTP_USERNAME:
+        EMAIL_PROVIDER = os.getenv('EMAIL_PROVIDER', 'smtp')
+    else:
+        EMAIL_PROVIDER = 'console'
 
 config = Config()
