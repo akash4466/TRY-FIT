@@ -14,3 +14,10 @@ PORT = int(os.environ.get('PORT', 8000))
 GMAIL_USER = os.environ.get('GMAIL_USER', '')
 GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+
+# Email service
+EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER', 'resend')
+SENDER_EMAIL = os.environ.get(
+    'SENDER_EMAIL',
+    'TRY-FIT <onboarding@resend.dev>'
+)
