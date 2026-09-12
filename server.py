@@ -16,18 +16,18 @@ class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 class TryFitHandler(http.server.BaseHTTPRequestHandler):
-    
+
     def get_post_data(self):
         content_length = int(self.headers.get('Content-Length', 0))
         if content_length == 0:
             return {}
         raw_bytes = self.rfile.read(content_length)
         content_type = self.headers.get('Content-Type', '')
-        
+
         if 'application/x-www-form-urlencoded' in content_type:
             parsed = urllib.parse.parse_qs(raw_bytes.decode('utf-8'))
             return {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in parsed.items()}
-        
+
         try:
             return json.loads(raw_bytes.decode('utf-8'))
         except Exception:
@@ -54,21 +54,21 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         cookie_header = self.headers.get('Cookie')
         if not cookie_header:
             return None
-        
+
         cookies = http.cookies.SimpleCookie(cookie_header)
         if 'session_id' not in cookies:
             return None
-        
+
         session_id = cookies['session_id'].value
-        
+
         if session_id == 'guest':
             return {'id': 'guest', 'name': 'Guest', 'email': '', 'role': 'user', 'session_id': session_id}
-        
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT u.id, u.name, u.email, u.role 
+                    SELECT u.id, u.name, u.email, u.role
                     FROM sessions s
                     JOIN users u ON s.user_id = u.id
                     WHERE s.session_id = %s
@@ -111,13 +111,16 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
     def get_header_html(self, user):
         cart_count = self.get_cart_count(user)
-        
+
         if user and user['id'] != 'guest':
             account_html = f"""
                     <a href="/dashboard" class="nav-link">
                         <span class="nav-link-small">Hello, {user['name']}</span>
-                        <span class="nav-link-main">Account & Dashboard</span>
+                        <span class="nav-link-main">Dashboard</span>
                     </a>
+                    <form method="POST" action="/api/logout" style="margin: 0;">
+                        <button type="submit" class="btn-text" style="font-size: 0.75rem; padding: 4px 8px; border: 1px solid var(--border); border-radius: 3px; cursor: pointer;">Logout</button>
+                    </form>
             """
         else:
             account_html = """
@@ -130,31 +133,33 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         <span class="nav-link-main">Create Account</span>
                     </a>
             """
-        
+
         return f"""
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
-                    <a href="/" class="logo">TRY-FIT</a>
-                    <div class="nav-location">
-                        <span class="nav-link-small">Deliver to</span>
-                        <span class="nav-link-main">📍 Select Location</span>
-                    </div>
+                    <nav class="nav-menu">
+                        <a href="/category?category=all" class="nav-menu-link">All</a>
+                        <a href="/category?category=men" class="nav-menu-link">Men</a>
+                        <a href="/category?category=women" class="nav-menu-link">Women</a>
+                        <a href="/category?category=shirts" class="nav-menu-link">Shirts</a>
+                        <a href="/category?category=jeans" class="nav-menu-link">Jeans</a>
+                        <a href="/category?category=shoes" class="nav-menu-link">Shoes</a>
+                        <a href="/category?category=dresses" class="nav-menu-link">Dresses</a>
+                    </nav>
                 </div>
+
                 <div class="nav-center">
+                    <a href="/" class="logo">TRY-FIT</a>
+                </div>
+
+                <div class="nav-right">
                     <form action="/search" method="GET" class="search-form">
-                        <select name="category" class="search-select">
-                            <option value="all">All</option>
-                            <option value="men">Men</option>
-                            <option value="women">Women</option>
-                        </select>
                         <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header" style="text-align: center;">
-                        <button type="submit" class="search-btn">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <button type="submit" class="search-btn" aria-label="Search">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
                     </form>
-                </div>
-                <div class="nav-right">
                     {account_html}
                     <a href="/orders" class="nav-link">
                         <span class="nav-link-small">Returns</span>
@@ -170,17 +175,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 </div>
             </div>
         </header>
-        <div class="secondary-nav">
-            <div class="container" style="display:flex; gap:15px; align-items:center;">
-                <a href="/category?category=all">All</a>
-                <a href="/category?category=men">Men's Fashion</a>
-                <a href="/category?category=women">Women's Fashion</a>
-                <a href="/category?category=shirts">Shirts</a>
-                <a href="/category?category=jeans">Jeans</a>
-                <a href="/category?category=shoes">Shoes</a>
-                <a href="/category?category=dresses">Dresses</a>
-            </div>
-        </div>
         """
 
     def get_footer_html(self):
@@ -273,14 +267,14 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             # Inject Global Header and Footer
             content = content.replace('{{HEADER}}', self.get_header_html(user))
             content = content.replace('{{FOOTER}}', self.get_footer_html())
-            
+
             for k, v in kwargs.items():
                 content = content.replace(f'{{{{{k}}}}}', str(v))
-                
+
             return content
         except Exception as e:
             return f"Error loading template {filepath}: {e}"
@@ -294,15 +288,15 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     query += f" LIMIT {int(limit)}"
                 cursor.execute(query)
                 items = cursor.fetchall()
-            
+
             if not items:
                 return '<div class="empty-trials"><p>No clothing items available right now.</p></div>'
-            
+
             cards = []
             for item in items:
                 price_int = int(float(item['price']))
                 trial_int = int(float(item['trial_price']))
-                
+
                 if is_guest:
                     category_html = "Premium Catalog"
                     name_html = "Exclusive Piece"
@@ -315,7 +309,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     pricing_html = f'<span class="buy-price">Buy: ₹{price_int:,}</span><span class="trial-price">Trial from ₹{trial_int}</span>'
                     btn_text = "TRY AT HOME"
                     link_href = f"/product?id={item['id']}"
-                    
+
                 cards.append(f"""
                 <div class="product-card" id="product-card-{item['id']}">
                     <a href="{link_href}" style="text-decoration: none; color: inherit;">
@@ -345,12 +339,12 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def get_trials_html_and_count(self, user_id):
         if user_id == 'guest':
             return '<div class="empty-state"><h3>No trials yet</h3><p>Your first TRY-FIT experience starts here.</p><a href="/#shop" class="btn-primary">Explore Collection</a></div>', 0, 0, 0
-            
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT t.id, t.cloth_id, t.duration_days, t.trial_fee, t.status, 
+                    SELECT t.id, t.cloth_id, t.duration_days, t.trial_fee, t.status,
                            t.start_date, t.end_date, c.name, c.category, c.image_url, c.price as retail_price
                     FROM trials t
                     JOIN clothes c ON t.cloth_id = c.id
@@ -358,15 +352,15 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     ORDER BY t.start_date DESC
                 """, (user_id,))
                 trials = cursor.fetchall()
-            
+
             active_trials = [t for t in trials if t['status'] == 'trying']
             count = len(active_trials)
             bought_count = len([t for t in trials if t['status'] == 'bought'])
             returned_count = len([t for t in trials if t['status'] == 'returned'])
-            
+
             if not trials:
                 return '<div class="empty-state"><h3>No trials yet</h3><p>Your first TRY-FIT experience starts here.</p><a href="/#shop" class="btn-primary">Explore Collection</a></div>', count, bought_count, returned_count
-                
+
             cards = []
             now = datetime.datetime.now()
             for t in trials:
@@ -374,13 +368,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 retail_int = int(float(t['retail_price']))
                 delta = t['end_date'] - now
                 days_left = max(0, delta.days + (1 if delta.seconds > 0 else 0)) if delta.total_seconds() > 0 else 0
-                
+
                 status_badge = f'<span class="trial-status status-active">Active Trial ({days_left}d left)</span>'
                 if t['status'] == 'bought':
                     status_badge = '<span class="trial-status status-bought">Purchased & Kept</span>'
                 elif t['status'] == 'returned':
                     status_badge = '<span class="trial-status status-returned">Returned</span>'
-                
+
                 actions_html = ""
                 if t['status'] == 'trying':
                     actions_html = f"""
@@ -397,7 +391,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         </form>
                     </div>
                     """
-                
+
                 cards.append(f"""
                 <div class="trial-card" id="trial-card-{t['id']}">
                     <img src="{t['image_url']}" alt="{t['name']}" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -434,15 +428,15 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     query += f" LIMIT {int(limit)}"
                 cursor.execute(query, tuple(categories))
                 items = cursor.fetchall()
-            
+
             if not items:
                 return '<div class="empty-trials"><p>No clothing items available in this category right now.</p></div>'
-            
+
             cards = []
             for item in items:
                 price_int = int(float(item['price']))
                 trial_int = int(float(item['trial_price']))
-                
+
                 if is_guest:
                     category_html = "Premium Catalog"
                     name_html = "Exclusive Piece"
@@ -455,7 +449,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     pricing_html = f'<span class="buy-price">Buy: ₹{price_int:,}</span><span class="trial-price">Trial from ₹{trial_int}</span>'
                     btn_text = "TRY AT HOME"
                     link_href = f"/product?id={item['id']}"
-                    
+
                 cards.append(f"""
                 <div class="product-card" id="product-card-{item['id']}">
                     <a href="{link_href}" style="text-decoration: none; color: inherit;">
@@ -494,19 +488,19 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             'dresses': ['Women – Dresses & Western', 'Women - Dresses', 'Women - Skirts', 'Women - Tops'],
             'handbags': ['Women – Footwear & Handbags', 'Footwear & Handbags']
         }
-        
+
         # Determine the HTML to inject
         if active_category in cat_map:
             catalog_html = self.get_catalog_html_by_category(cat_map[active_category], limit=limit, is_guest=is_guest)
         else:
             catalog_html = self.get_catalog_html(limit=limit, is_guest=is_guest)
-            
+
         content = content.replace('{{CATALOG_GRID}}', catalog_html)
-        
+
         # Set all inactive by default
         for key in ['all', 'men', 'women', 'shirts', 'jackets', 'jeans', 'shoes', 'dresses', 'handbags']:
             content = content.replace(f'{{{{CAT_ACTIVE_{key}}}}}', 'active' if key == active_category else '')
-            
+
         return content
 
     def serve_account(self, query_params=None):
@@ -516,9 +510,9 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 if 'error' in query_params:
                     msg = urllib.parse.unquote(query_params['error'][0])
                     alert_html = f'<div class="toast-alert alert-error">{msg}</div>'
-                    
+
             content = self.render_template('templates/account.html', None, ERROR_ALERT=alert_html, INFO_ALERT='')
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -532,11 +526,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         try:
             user = self.get_current_user()
             content = self.render_template('templates/index.html', user)
-            
+
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
             is_guest = (not user or user['id'] == 'guest')
             content = self.replace_category_placeholders(content, limit=20, active_category=category, is_guest=is_guest)
-            
+
             alert_html = ""
             if query_params:
                 if 'error' in query_params:
@@ -545,9 +539,9 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 elif 'success' in query_params:
                     msg = urllib.parse.unquote(query_params['success'][0])
                     alert_html = f'<div class="toast-alert alert-success">{msg}</div>'
-            
+
             content = content.replace('{{MESSAGE_ALERT}}', alert_html)
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -560,7 +554,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def serve_page(self, query_params, user):
         try:
             page_id = query_params.get('id', [''])[0] if query_params else ''
-            
+
             pages = {
                 'about': ('About TRY-FIT', 'TRY-FIT is your ultimate luxury fashion marketplace, revolutionizing the way you shop with our exclusive "Try Before You Buy" model.'),
                 'story': ('Our Story', 'Founded with a vision to eliminate the guesswork of online shopping, TRY-FIT allows you to experience the perfect fit in the comfort of your home.'),
@@ -573,9 +567,9 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 'terms': ('Terms of Service', 'By accessing TRY-FIT, you agree to our Terms of Service outlining user responsibilities, account management, and marketplace rules.'),
                 'privacy': ('Privacy Policy', 'Your privacy is our priority. Learn how TRY-FIT secures your personal data and ensures a safe shopping environment.')
             }
-            
+
             title, content_text = pages.get(page_id, ('Information', 'Content coming soon.'))
-            
+
             content = self.render_template('templates/page.html', user, TITLE=title, CONTENT=content_text)
             encoded_content = content.encode('utf-8')
             self.send_response(200)
@@ -589,15 +583,15 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def serve_dashboard(self, user, query_params=None):
         try:
             content = self.render_template('templates/dashboard.html', user)
-            
+
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
             content = self.replace_category_placeholders(content, limit=None, active_category=category)
             content = content.replace('{{USER_NAME}}', user['name'])
             content = content.replace(
-                '<div class="avatar" id="user-avatar">U</div>', 
+                '<div class="avatar" id="user-avatar">U</div>',
                 f'<div class="avatar" id="user-avatar">{user["name"][0].upper() if user["name"] else "U"}</div>'
             )
-            
+
             guest_alert = ""
             if user['id'] == 'guest':
                 content = content.replace(
@@ -609,15 +603,15 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     '<!-- guest no logout form -->'
                 )
                 guest_alert = '<div style="background: #FFF8E7; border: 1px solid #FFE0B2; color: #8D6E63; padding: 14px 20px; text-align: center; font-size: 0.95rem; margin: 20px auto; max-width: 1200px; border-radius: 10px; font-weight: 500;">👀 <strong>Guest Browsing Mode:</strong> You are exploring our catalog as a guest. To book home trials or purchase any clothing item, please <a href="/#login-section" style="color: #D81B60; font-weight: 700; text-decoration: underline;">Sign Up or Log In</a>.</div>'
-            
+
             content = self.replace_category_placeholders(content)
-            
+
             trials_html, trial_count, bought_count, returned_count = self.get_trials_html_and_count(user['id'])
             content = content.replace('{{TRIALS_GRID}}', trials_html)
             content = content.replace('{{TRIAL_COUNT}}', str(trial_count))
             content = content.replace('{{BOUGHT_COUNT}}', str(bought_count))
             content = content.replace('{{RETURNED_COUNT}}', str(returned_count))
-            
+
             alert_html = guest_alert
             if query_params:
                 if 'error' in query_params:
@@ -627,7 +621,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     msg = urllib.parse.unquote(query_params['success'][0])
                     alert_html += f'<div class="toast-alert alert-success">{msg}</div>'
             content = content.replace('{{MESSAGE_ALERT}}', alert_html)
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -644,19 +638,19 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             name = query_params.get('name', [''])[0] if query_params else ''
             info_msg = urllib.parse.unquote(query_params.get('info', [''])[0]) if query_params and 'info' in query_params else ''
             error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params and 'error' in query_params else ''
-            
+
             info_html = f'<div class="toast-alert alert-success" style="background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: center;">{info_msg}</div>' if info_msg else ''
             error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
-            
+
             with open('templates/verify.html', 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             content = content.replace('{{MOBILE_NUMBER}}', email)
             content = content.replace('{{PURPOSE}}', purpose)
             content = content.replace('{{NAME}}', name)
             content = content.replace('{{INFO_ALERT}}', info_html)
             content = content.replace('{{ERROR_ALERT}}', error_html)
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -673,17 +667,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 cursor.execute("SELECT * FROM clothes WHERE id = %s", (cloth_id,))
                 cloth = cursor.fetchone()
             conn.close()
-            
+
             if not cloth:
                 self.send_error(404, "Clothing item not found")
                 return
-                
+
             with open('templates/book_trial.html', 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             price_int = int(float(cloth['price']))
             trial_int = int(float(cloth['trial_price']))
-            
+
             content = content.replace('{{CLOTH_ID}}', str(cloth['id']))
             content = content.replace('{{CLOTH_NAME}}', cloth['name'])
             content = content.replace('{{CLOTH_CATEGORY}}', cloth['category'])
@@ -691,7 +685,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             content = content.replace('{{CLOTH_PRICE}}', f"{price_int:,}")
             content = content.replace('{{TRIAL_PRICE}}', str(trial_int))
             content = content.replace('{{USER_NAME}}', user['name'] if user and 'name' in user else '')
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -724,7 +718,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         try:
             with open('templates/admin_dashboard.html', 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             # Fetch summary data
             conn = db.get_connection()
             try:
@@ -754,28 +748,28 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def serve_product(self, query_params=None, user=None):
         cloth_id = query_params.get('id', [''])[0] if query_params else ''
         selected_size = query_params.get('size', ['M'])[0] if query_params else 'M'
-        
+
         if not cloth_id:
             self.send_response(303)
             self.send_header('Location', '/')
             self.end_headers()
             return
-            
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT * FROM clothes WHERE id = %s", (cloth_id,))
                 cloth = cursor.fetchone()
-                
+
             if not cloth:
                 self.send_response(303)
                 self.send_header('Location', '/')
                 self.end_headers()
                 return
-                
+
             price_int = int(float(cloth['price']))
             trial_int = int(float(cloth['trial_price']))
-            
+
             content = self.render_template('templates/product.html', user,
                 CLOTH_ID=str(cloth['id']),
                 CLOTH_NAME=cloth['name'],
@@ -790,7 +784,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 SIZE_L_ACTIVE="active" if selected_size == "L" else "",
                 SIZE_XL_ACTIVE="active" if selected_size == "XL" else ""
             )
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -805,13 +799,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def serve_search(self, query_params=None, user=None):
         q = query_params.get('q', [''])[0] if query_params else ''
         is_guest = not user or user['id'] == 'guest'
-        
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT * FROM clothes WHERE name LIKE %s OR category LIKE %s", (f"%{q}%", f"%{q}%"))
                 items = cursor.fetchall()
-            
+
             if not items:
                 catalog_html = '<div class="empty-state"><p>No pieces matched your search.</p></div>'
             else:
@@ -819,7 +813,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 for item in items:
                     price_int = int(float(item['price']))
                     trial_int = int(float(item['trial_price']))
-                    
+
                     if is_guest:
                         category_html = "Premium Catalog"
                         name_html = "Exclusive Piece"
@@ -832,7 +826,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         pricing_html = f'<span class="buy-price">Buy: ₹{price_int:,}</span><span class="trial-price">Trial from ₹{trial_int}</span>'
                         btn_text = "TRY AT HOME"
                         link_href = f"/product?id={item['id']}"
-                        
+
                     cards.append(f"""
                     <div class="product-card" id="product-card-{item['id']}">
                         <a href="{link_href}" style="text-decoration: none; color: inherit;">
@@ -853,13 +847,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     </div>
                     """)
                 catalog_html = "\\n".join(cards)
-                
+
             with open('templates/search_results.html', 'r', encoding='utf-8') as f:
                 content = f.read()
-                
+
             content = content.replace('{{CATALOG_GRID}}', catalog_html)
             content = content.replace('{{SEARCH_QUERY}}', q)
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -874,16 +868,16 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def serve_category(self, query_params, user):
         try:
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
-            
+
             with open('templates/category.html', 'r', encoding='utf-8') as f:
                 content = f.read()
             content = self.replace_category_placeholders(content, limit=None, active_category=category, is_guest=(not user or user['id']=='guest'))
-            
+
             # Inject Global Header and Footer
             content = content.replace('{{HEADER}}', self.get_header_html(user))
             content = content.replace('{{FOOTER}}', self.get_footer_html())
             content = content.replace('{{CATEGORY_TITLE}}', category.upper())
-            
+
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -940,10 +934,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                             """
                 finally:
                     conn.close()
-            
+
             if not cart_html:
                 cart_html = "<div class='empty-state' style='grid-column:1/-1;'><h3>Your TRY-FIT Cart is empty.</h3><a href='/category' class='btn-primary'>Continue Shopping</a></div>"
-                
+
             content = self.render_template('templates/cart.html', user, CART_ITEMS=cart_html, CART_TOTAL=f"₹{total:,.2f}")
             encoded_content = content.encode('utf-8')
             self.send_response(200)
@@ -984,7 +978,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                             """
                 finally:
                     conn.close()
-            
+
             content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"₹{total:,.2f}")
             encoded_content = content.encode('utf-8')
             self.send_response(200)
@@ -1042,10 +1036,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                             """
                 finally:
                     conn.close()
-                    
+
             if not orders_html:
                 orders_html = "<div class='empty-state'><h3>You have no previous orders.</h3><a href='/category' class='btn-primary'>Start Shopping</a></div>"
-                
+
             content = self.render_template('templates/orders.html', user, ORDERS_LIST=orders_html)
             encoded_content = content.encode('utf-8')
             self.send_response(200)
@@ -1064,7 +1058,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 try:
                     with conn.cursor() as cursor:
                         cursor.execute("""
-                            SELECT w.id as wish_id, c.* 
+                            SELECT w.id as wish_id, c.*
                             FROM wishlist w JOIN clothes c ON w.cloth_id = c.id
                             WHERE w.user_id = %s
                         """, (user['id'],))
@@ -1095,7 +1089,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     conn.close()
             if not wishlist_html:
                 wishlist_html = "<div class='empty-state' style='grid-column:1/-1;'><h3>Your Wishlist is empty.</h3><a href='/category' class='btn-primary'>Discover Fashion</a></div>"
-            
+
             content = self.render_template('templates/wishlist.html', user, WISHLIST_ITEMS=wishlist_html, MESSAGE_ALERT="")
             encoded_content = content.encode('utf-8')
             self.send_response(200)
@@ -1180,7 +1174,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             user = self.get_current_user()
             self.serve_product(query_params, user)
             return
-            
+
         elif path == '/search':
             user = self.get_current_user()
             self.serve_search(query_params, user)
@@ -1265,7 +1259,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             if not user:
                 self.send_json_error("Unauthorized", 401)
                 return
-            
+
             conn = db.get_connection()
             try:
                 with conn.cursor() as cursor:
@@ -1287,16 +1281,16 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             if not user:
                 self.send_json_error("Unauthorized", 401)
                 return
-            
+
             if user['id'] == 'guest':
                 self.send_json_success([])
                 return
-            
+
             conn = db.get_connection()
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                        SELECT t.id, t.cloth_id, t.duration_days, t.trial_fee, t.status, 
+                        SELECT t.id, t.cloth_id, t.duration_days, t.trial_fee, t.status,
                                t.start_date, t.end_date, c.name, c.category, c.image_url, c.price as retail_price
                         FROM trials t
                         JOIN clothes c ON t.cloth_id = c.id
@@ -1384,19 +1378,19 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
             self.end_headers()
             return
-            
+
         data = self.get_post_data()
         cloth_id = data.get('cloth_id')
         size = str(data.get('size', 'M')).strip()
         color = str(data.get('color', 'Black')).strip()
         qty = int(data.get('quantity', 1))
-        
+
         session_id = user.get('session_id', '')
-        
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT id, quantity FROM cart WHERE session_id = %s AND cloth_id = %s AND size = %s AND color = %s", 
+                cursor.execute("SELECT id, quantity FROM cart WHERE session_id = %s AND cloth_id = %s AND size = %s AND color = %s",
                                (session_id, cloth_id, size, color))
                 existing = cursor.fetchone()
                 if existing:
@@ -1405,7 +1399,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     cursor.execute("INSERT INTO cart (session_id, cloth_id, size, color, quantity) VALUES (%s, %s, %s, %s, %s)",
                                    (session_id, cloth_id, size, color, qty))
                 conn.commit()
-            
+
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/cart?success=' + urllib.parse.quote("Added to cart"))
@@ -1419,7 +1413,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         data = self.get_post_data()
         cart_id = data.get('cart_id')
         qty = int(data.get('quantity', 1))
-        
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
@@ -1458,11 +1452,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login to checkout"))
             self.end_headers()
             return
-            
+
         data = self.get_post_data()
         address = str(data.get('address', '')).strip()
         payment_method = str(data.get('payment_method', 'Cash on Delivery')).strip()
-        
+
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
@@ -1472,30 +1466,30 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     WHERE c.session_id = %s
                 """, (user['session_id'],))
                 items = cursor.fetchall()
-                
+
                 if not items:
                     self.send_response(303)
                     self.send_header('Location', '/cart?error=' + urllib.parse.quote("Cart is empty"))
                     self.end_headers()
                     return
-                
+
                 total = sum(float(i['price']) * i['quantity'] for i in items)
-                
+
                 cursor.execute("""
                     INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (user['id'], total, total, address, payment_method))
                 order_id = cursor.lastrowid
-                
+
                 for i in items:
                     cursor.execute("""
                         INSERT INTO order_items (order_id, cloth_id, quantity, price, size, color)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (order_id, i['cloth_id'], i['quantity'], i['price'], i['size'], i['color']))
-                
+
                 cursor.execute("DELETE FROM cart WHERE session_id = %s", (user['session_id'],))
                 conn.commit()
-                
+
             self.send_response(303)
             self.send_header('Location', '/orders?success=' + urllib.parse.quote("Order placed successfully!"))
             self.end_headers()
@@ -1511,7 +1505,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
             self.end_headers()
             return
-            
+
         data = self.get_post_data()
         cloth_id = data.get('cloth_id')
         conn = db.get_connection()
@@ -1556,13 +1550,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             with conn.cursor() as cursor:
                 cursor.execute("SELECT id FROM users WHERE email = %s AND role = 'admin'", (email,))
                 user = cursor.fetchone()
-                
+
                 # Using a hardcoded password for simplicity for the admin account for now
                 if user and password == "admin123":
                     session_id = uuid.uuid4().hex
                     cursor.execute("INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)", (session_id, user['id']))
                     conn.commit()
-                    
+
                     self.send_response(303 if self.is_form_submission() else 200)
                     if not self.is_form_submission():
                         self.send_header('Content-Type', 'application/json')
@@ -1795,7 +1789,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             cookies = http.cookies.SimpleCookie(cookie_header)
             if 'session_id' in cookies:
                 session_id = cookies['session_id'].value
-                
+
                 conn = db.get_connection()
                 try:
                     with conn.cursor() as cursor:
@@ -1888,7 +1882,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 INSERT INTO trials (user_id, cloth_id, duration_days, trial_fee, status, start_date, end_date)
                 VALUES (%s, %s, %s, %s, 'trying', %s, %s)
             """, (user['id'], cloth_id, duration_days, trial_fee, start_date, end_date))
-            
+
             conn.commit()
             conn.close()
 
