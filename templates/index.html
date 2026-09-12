@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    {{HEADER}}
+    {% include "header.html" %}
 
     {{MESSAGE_ALERT}}
 
@@ -25,22 +25,7 @@
         </div>
     </section>
 
-    <!-- 5. CATEGORY TABS -->
-    <nav class="category-nav-bar" id="shop">
-        <div class="container">
-            <div class="category-tabs">
-                <a href="/?category=all#shop" class="cat-tab {{CAT_ACTIVE_all}}">ALL</a>
-                <a href="/?category=men#shop" class="cat-tab {{CAT_ACTIVE_men}}">MEN</a>
-                <a href="/?category=women#shop" class="cat-tab {{CAT_ACTIVE_women}}">WOMEN</a>
-                <a href="/?category=shirts#shop" class="cat-tab {{CAT_ACTIVE_shirts}}">SHIRTS</a>
-                <a href="/?category=jackets#shop" class="cat-tab {{CAT_ACTIVE_jackets}}">JACKETS</a>
-                <a href="/?category=jeans#shop" class="cat-tab {{CAT_ACTIVE_jeans}}">JEANS</a>
-                <a href="/?category=shoes#shop" class="cat-tab {{CAT_ACTIVE_shoes}}">SHOES</a>
-                <a href="/?category=dresses#shop" class="cat-tab {{CAT_ACTIVE_dresses}}">DRESSES</a>
-                <a href="/?category=handbags#shop" class="cat-tab {{CAT_ACTIVE_handbags}}">HANDBAGS</a>
-            </div>
-        </div>
-    </nav>
+
 
     <!-- 6. PRODUCT GRID -->
     <main class="container">
