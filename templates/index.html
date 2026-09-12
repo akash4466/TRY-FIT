@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,31 +130,3 @@
 
 </body>
 </html>
-```
-
-### What I changed
-
-Only the important template issue:
-
-```diff
-- {% include "header.html" %}
-+ {{HEADER}}
-```
-
-I also formatted the long HTML attributes for readability. **No colors, sections, product grid, hero content, buttons, or functionality were changed.**
-
-### Now save this as
-
-```text
-C:\TRY-FIT\templates\index.html
-```
-
-Then run:
-
-```powershell
-cd C:\TRY-FIT
-git diff --check
-git status
-```
-
-**Don't push yet.** Send me the output of those two commands and I'll check it before you deploy again.
