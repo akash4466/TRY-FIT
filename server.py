@@ -148,7 +148,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                             <option value="men">Men</option>
                             <option value="women">Women</option>
                         </select>
-                        <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header">
+                        <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header" style="text-align: center;">
                         <button type="submit" class="search-btn">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
@@ -534,7 +534,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             content = self.render_template('templates/index.html', user)
             
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
-            content = self.replace_category_placeholders(content, limit=20, active_category=category, is_guest=True)
+            is_guest = (not user or user['id'] == 'guest')
+            content = self.replace_category_placeholders(content, limit=20, active_category=category, is_guest=is_guest)
             
             alert_html = ""
             if query_params:
@@ -934,7 +935,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                         </form>
                                     </div>
                                 </div>
-                                <div class="cart-price">${float(i['price']):.2f}</div>
+                                <div class="cart-price">₹{float(i['price']):,.2f}</div>
                             </div>
                             """
                 finally:
@@ -943,7 +944,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             if not cart_html:
                 cart_html = "<div class='empty-state' style='grid-column:1/-1;'><h3>Your TRY-FIT Cart is empty.</h3><a href='/category' class='btn-primary'>Continue Shopping</a></div>"
                 
-            content = self.render_template('templates/cart.html', user, CART_ITEMS=cart_html, CART_TOTAL=f"${total:.2f}")
+            content = self.render_template('templates/cart.html', user, CART_ITEMS=cart_html, CART_TOTAL=f"₹{total:,.2f}")
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -977,14 +978,14 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                     <h4 style="margin-bottom:10px;">{i['name']}</h4>
                                     <p style="color:var(--muted); font-size:0.85rem;">Size: {i['size']} | Color: {i['color']}</p>
                                     <p style="color:var(--muted); font-size:0.85rem; margin-top:5px;">Qty: {i['quantity']}</p>
-                                    <p style="font-weight:600; margin-top:10px;">${float(i['price']):.2f}</p>
+                                    <p style="font-weight:600; margin-top:10px;">₹{float(i['price']):,.2f}</p>
                                 </div>
                             </div>
                             """
                 finally:
                     conn.close()
             
-            content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"${total:.2f}")
+            content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"₹{total:,.2f}")
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -1014,7 +1015,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                     <div>
                                         <h4 style="margin-bottom:5px;">{i['name']}</h4>
                                         <p style="font-size:0.85rem; color:var(--muted);">Size: {i['size']} | Color: {i['color']}</p>
-                                        <p style="font-size:0.85rem; margin-top:5px;">Qty: {i['quantity']} &nbsp;&nbsp;|&nbsp;&nbsp; <b>${float(i['price']):.2f}</b></p>
+                                        <p style="font-size:0.85rem; margin-top:5px;">Qty: {i['quantity']} &nbsp;&nbsp;|&nbsp;&nbsp; <b>₹{float(i['price']):,.2f}</b></p>
                                     </div>
                                 </div>
                                 """
@@ -1027,7 +1028,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                     </div>
                                     <div>
                                         <span style="display:block; color:var(--muted); margin-bottom:5px;">TOTAL</span>
-                                        <span>${float(o['final_total']):.2f}</span>
+                                        <span>₹{float(o['final_total']):,.2f}</span>
                                     </div>
                                     <div>
                                         <span style="display:block; color:var(--muted); margin-bottom:5px;">ORDER # {o['id']}</span>
@@ -1084,7 +1085,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                     <div class="product-category">{i['category']}</div>
                                     <h3 class="product-title">{i['name']}</h3>
                                     <div class="product-pricing">
-                                        <span class="buy-price">Buy ${float(i['price']):.2f}</span>
+                                        <span class="buy-price">Buy ₹{float(i['price']):,.2f}</span>
                                     </div>
                                     <a href="/product?id={i['id']}" class="btn-try">View Details</a>
                                 </div>
@@ -1137,18 +1138,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         # Core routes
         if path == '/':
-            user = self.get_current_user()
-            if user:
-                self.send_response(303)
-                if query_params:
-                    # Pass the category query string to dashboard
-                    q_str = urllib.parse.urlencode(query_params, doseq=True)
-                    self.send_header('Location', f'/dashboard?{q_str}')
-                else:
-                    self.send_header('Location', '/dashboard')
-                self.end_headers()
-            else:
-                self.serve_index(query_params)
+            self.serve_index(query_params)
             return
 
         elif path == '/account':
@@ -1235,7 +1225,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         elif path == '/guest-login':
             self.send_response(303)
             self.send_header('Set-Cookie', 'session_id=guest; Path=/; HttpOnly; Max-Age=86400')
-            self.send_header('Location', '/dashboard')
+            self.send_header('Location', '/')
             self.end_headers()
             return
 
@@ -1784,7 +1774,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
             self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
             if self.is_form_submission():
-                self.send_header('Location', '/dashboard?success=' + urllib.parse.quote("Successfully verified and logged in!"))
+                success_msg = "Account created successfully! Welcome to TRY-FIT." if purpose == 'register' else "Successfully logged in! Welcome back."
+                self.send_header('Location', '/?success=' + urllib.parse.quote(success_msg))
             self.end_headers()
             if not self.is_form_submission():
                 self.wfile.write(json.dumps({"message": "Successfully verified and logged in"}).encode('utf-8'))
@@ -1832,7 +1823,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json')
         self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
         if self.is_form_submission() or 'text/html' in self.headers.get('Accept', ''):
-            self.send_header('Location', '/dashboard')
+            self.send_header('Location', '/')
         self.end_headers()
         if not self.is_form_submission() and 'text/html' not in self.headers.get('Accept', ''):
             self.wfile.write(json.dumps({"message": "Logged in as guest"}).encode('utf-8'))

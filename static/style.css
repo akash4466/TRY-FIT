@@ -280,6 +280,11 @@ img {
     padding: 0 15px;
     font-size: 0.95rem;
     outline: none;
+    text-align: center;
+}
+
+.search-input-header::placeholder {
+    text-align: center;
 }
 
 .search-btn {
@@ -529,10 +534,12 @@ img {
     padding: 15px 0;
     outline: none;
     color: var(--primary);
+    text-align: center;
 }
 
 .search-input::placeholder {
     color: var(--border);
+    text-align: center;
 }
 
 /* ==================================================
@@ -1273,6 +1280,11 @@ img {
     padding: 0 15px;
     font-size: 0.95rem;
     outline: none;
+    text-align: center;
+}
+
+.search-input-header::placeholder {
+    text-align: center;
 }
 
 .search-btn {
