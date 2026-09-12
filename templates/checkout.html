@@ -26,9 +26,9 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Payment Method</label>
-                        <select name="payment_method" class="form-control">
-                            <option>Credit Card (Mock)</option>
-                            <option>Cash on Delivery</option>
+                        <select name="payment_method" id="payment_method" class="form-control">
+                          <option value="razorpay">Razorpay</option>
+                          <option value="cod">Cash on Delivery</option>
                         </select>
                     </div>
                     <button type="submit" class="btn-primary" style="width: 100%;">Place Order</button>
@@ -49,4 +49,146 @@
 
     {{FOOTER}}
 </body>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{{FOOTER}}
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+document.getElementById('checkout-form').addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+    const form = this;
+    const paymentMethod = document.getElementById('payment_method').value;
+    const address = form.querySelector('[name="address"]').value.trim();
+
+    if (!address) {
+        alert('Please enter your delivery address.');
+        return;
+    }
+
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    button.textContent = 'Processing...';
+
+    try {
+        // Cash on Delivery keeps the existing checkout flow.
+        if (paymentMethod === 'cod') {
+            form.action = '/checkout/submit';
+            form.method = 'POST';
+            form.submit();
+            return;
+        }
+
+        // Step 1: Create Razorpay order on the server.
+        const orderResponse = await fetch('/api/razorpay/create-order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        });
+
+        const orderData = await orderResponse.json();
+
+        if (!orderResponse.ok || !orderData.success) {
+            throw new Error(
+                orderData.error || 'Unable to create Razorpay order.'
+            );
+        }
+
+        // Step 2: Open Razorpay Checkout.
+        const options = {
+            key: orderData.key_id,
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: 'TRY-FIT',
+            description: 'TRY-FIT Order',
+            order_id: orderData.order_id,
+
+            handler: async function(response) {
+                try {
+                    // Step 3: Verify payment on our server.
+                    const verifyResponse = await fetch(
+                        '/api/razorpay/verify-payment',
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                                address: address
+                            })
+                        }
+                    );
+
+                    const verifyData = await verifyResponse.json();
+
+                    if (!verifyResponse.ok || !verifyData.success) {
+                        throw new Error(
+                            verifyData.error || 'Payment verification failed.'
+                        );
+                    }
+
+                    window.location.href =
+                        '/orders?success=' +
+                        encodeURIComponent(
+                            'Payment successful! Order placed successfully.'
+                        );
+
+                } catch (error) {
+                    alert(error.message);
+                    button.disabled = false;
+                    button.textContent = 'Place Order';
+                }
+            },
+
+            modal: {
+                ondismiss: function() {
+                    button.disabled = false;
+                    button.textContent = 'Place Order';
+                }
+            },
+
+            prefill: {
+                name: form.querySelector('[name="name"]').value.trim()
+            },
+
+            theme: {
+                color: '#111111'
+            }
+        };
+
+        const razorpay = new Razorpay(options);
+
+        razorpay.on('payment.failed', function(response) {
+            console.error('Razorpay payment failed:', response.error);
+
+            alert(
+                response.error.description ||
+                'Payment failed. Please try again.'
+            );
+
+            button.disabled = false;
+            button.textContent = 'Place Order';
+        });
+
+        razorpay.open();
+
+    } catch (error) {
+        console.error('Checkout error:', error);
+
+        alert(error.message || 'Something went wrong.');
+
+        button.disabled = false;
+        button.textContent = 'Place Order';
+    }
+});
+</script>
+
+</body>
+</html>
 </html>

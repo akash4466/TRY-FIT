@@ -10,6 +10,10 @@ DB_NAME = os.environ.get('DB_NAME', 'try-fit')
 # Web Server configurations
 PORT = int(os.environ.get('PORT', 8000))
 
+# Razorpay Payment Gateway
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
+
 # OTP Delivery settings
 GMAIL_USER = os.environ.get('GMAIL_USER', '')
 GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')

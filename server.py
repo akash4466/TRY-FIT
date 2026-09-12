@@ -1,3 +1,5 @@
+import razorpay
+import config
 import http.server
 import socketserver
 import urllib.parse
@@ -11,6 +13,10 @@ import http.cookies
 import db
 import sms
 import config
+
+razorpay_client = razorpay.Client(
+    auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET)
+)
 
 class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
@@ -1406,6 +1412,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.handle_cart_update()
         elif path == '/api/cart/remove' or path == '/cart/remove':
             self.handle_cart_remove()
+        elif path == '/api/razorpay/create-order':
+            self.handle_razorpay_create_order()
+        elif path == '/api/razorpay/verify-payment':
+            self.handle_razorpay_verify_payment()
         elif path == '/api/checkout/submit' or path == '/checkout/submit':
             self.handle_checkout_submit()
         elif path == '/api/wishlist/add' or path == '/wishlist/add':
@@ -1541,7 +1551,175 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(500, f"Checkout Error: {e}")
         finally:
             conn.close()
+    def handle_razorpay_create_order(self):
+        user = self.get_current_user()
 
+        if not user or user['id'] == 'guest':
+            self.send_json_error("Please login to checkout", 401)
+            return
+
+        conn = db.get_connection()
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT cl.price, c.quantity
+                    FROM cart c
+                    JOIN clothes cl ON c.cloth_id = cl.id
+                    WHERE c.session_id = %s
+                """, (user['session_id'],))
+
+                items = cursor.fetchall()
+
+                if not items:
+                    self.send_json_error("Cart is empty", 400)
+                    return
+
+                total = sum(
+                    float(item['price']) * int(item['quantity'])
+                    for item in items
+                )
+
+                amount_paise = int(round(total * 100))
+
+                razorpay_order = razorpay_client.order.create({
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "receipt": f"tryfit_{user['id']}_{random.randint(100000, 999999)}",
+                    "payment_capture": 1
+                })
+
+                self.send_json_response({
+                    "success": True,
+                    "order_id": razorpay_order["id"],
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "key_id": config.RAZORPAY_KEY_ID
+                })
+
+        except Exception as e:
+            self.send_json_error(
+                f"Razorpay order creation failed: {e}",
+                500
+            )
+
+        finally:
+            conn.close()
+    def handle_razorpay_verify_payment(self):
+        user = self.get_current_user()
+
+        if not user or user['id'] == 'guest':
+            self.send_json_error("Please login to checkout", 401)
+            return
+
+        data = self.get_post_data()
+
+        razorpay_order_id = str(
+            data.get('razorpay_order_id', '')
+        ).strip()
+
+        razorpay_payment_id = str(
+            data.get('razorpay_payment_id', '')
+        ).strip()
+
+        razorpay_signature = str(
+            data.get('razorpay_signature', '')
+        ).strip()
+
+        if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+            self.send_json_error("Payment verification data is missing", 400)
+            return
+
+        try:
+            razorpay_client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+
+        except Exception:
+            self.send_json_error("Payment verification failed", 400)
+            return
+
+        conn = db.get_connection()
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT cl.id as cloth_id,
+                           cl.price,
+                           c.quantity,
+                           c.size,
+                           c.color
+                    FROM cart c
+                    JOIN clothes cl ON c.cloth_id = cl.id
+                    WHERE c.session_id = %s
+                """, (user['session_id'],))
+
+                items = cursor.fetchall()
+
+                if not items:
+                    self.send_json_error("Cart is empty", 400)
+                    return
+
+                total = sum(
+                    float(item['price']) * int(item['quantity'])
+                    for item in items
+                )
+
+                cursor.execute("""
+                    INSERT INTO orders
+                    (user_id, total_amount, final_total,
+                     delivery_address, payment_method)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    user['id'],
+                    total,
+                    total,
+                    str(data.get('address', '')).strip(),
+                    'Razorpay'
+                ))
+
+                order_id = cursor.lastrowid
+
+                for item in items:
+                    cursor.execute("""
+                        INSERT INTO order_items
+                        (order_id, cloth_id, quantity, price, size, color)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        order_id,
+                        item['cloth_id'],
+                        item['quantity'],
+                        item['price'],
+                        item['size'],
+                        item['color']
+                    ))
+
+                cursor.execute("""
+                    DELETE FROM cart
+                    WHERE session_id = %s
+                """, (user['session_id'],))
+
+                conn.commit()
+
+            self.send_json_response({
+                "success": True,
+                "message": "Payment successful and order placed",
+                "order_id": order_id
+            })
+
+        except Exception as e:
+            conn.rollback()
+            self.send_json_error(
+                f"Order creation failed: {e}",
+                500
+            )
+
+        finally:
+            conn.close()
+
+    
     def handle_wishlist_add(self):
         user = self.get_current_user()
         if not user or user['id'] == 'guest':
