@@ -2,4 +2,5 @@ PyMySQL==1.1.1
 python-dotenv==1.0.1
 PyJWT==2.8.0
 requests==2.31.0
-razorpay
+setuptools<81
+razorpay==1.3.0

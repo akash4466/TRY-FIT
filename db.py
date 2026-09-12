@@ -565,6 +565,11 @@ def init_db():
                 status VARCHAR(50) DEFAULT 'Pending',
                 delivery_address TEXT NOT NULL,
                 payment_method VARCHAR(50) DEFAULT 'Cash on Delivery',
+                razorpay_order_id VARCHAR(255) NULL,
+                razorpay_payment_id VARCHAR(255) NULL,
+                razorpay_signature VARCHAR(255) NULL,
+                payment_status ENUM('created','paid','failed') DEFAULT 'created',
+                payment_verified_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id)
                     REFERENCES users(id)
@@ -572,6 +577,20 @@ def init_db():
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
         )
+
+        # Migration: Ensure Razorpay columns exist on existing orders table
+        migration_columns = [
+            ("razorpay_order_id", "VARCHAR(255) NULL"),
+            ("razorpay_payment_id", "VARCHAR(255) NULL"),
+            ("razorpay_signature", "VARCHAR(255) NULL"),
+            ("payment_status", "ENUM('created','paid','failed') DEFAULT 'created'"),
+            ("payment_verified_at", "DATETIME NULL")
+        ]
+        for col_name, col_type in migration_columns:
+            cursor.execute(f"SHOW COLUMNS FROM orders LIKE '{col_name}'")
+            if not cursor.fetchone():
+                cursor.execute(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}")
+
 
         # -----------------------------------------------------
         # ORDER ITEMS

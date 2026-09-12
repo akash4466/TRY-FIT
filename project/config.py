@@ -12,6 +12,9 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
     SECRET_KEY = os.getenv('SECRET_KEY', 'default_fallback_secret_key_change_in_prod')
     JWT_EXPIRES_MINUTES = int(os.getenv('JWT_EXPIRES_MINUTES', 1440))
+    # Razorpay credentials (test credentials should be set via .env)
+    RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+    RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
     
     # Database Settings
     DB_HOST = os.getenv('DB_HOST', 'localhost')

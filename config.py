@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Database configurations
 DB_HOST = os.environ.get('DB_HOST', 'localhost')

@@ -1553,171 +1553,218 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
     def handle_razorpay_create_order(self):
         user = self.get_current_user()
-
-        if not user or user['id'] == 'guest':
-            self.send_json_error("Please login to checkout", 401)
-            return
-
-        conn = db.get_connection()
-
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT cl.price, c.quantity
-                    FROM cart c
-                    JOIN clothes cl ON c.cloth_id = cl.id
-                    WHERE c.session_id = %s
-                """, (user['session_id'],))
-
-                items = cursor.fetchall()
-
-                if not items:
-                    self.send_json_error("Cart is empty", 400)
-                    return
-
-                total = sum(
-                    float(item['price']) * int(item['quantity'])
-                    for item in items
-                )
-
-                amount_paise = int(round(total * 100))
-
-                razorpay_order = razorpay_client.order.create({
-                    "amount": amount_paise,
-                    "currency": "INR",
-                    "receipt": f"tryfit_{user['id']}_{random.randint(100000, 999999)}",
-                    "payment_capture": 1
-                })
-
-                self.send_json_response({
-                    "success": True,
-                    "order_id": razorpay_order["id"],
-                    "amount": amount_paise,
-                    "currency": "INR",
-                    "key_id": config.RAZORPAY_KEY_ID
-                })
-
-        except Exception as e:
-            self.send_json_error(
-                f"Razorpay order creation failed: {e}",
-                500
-            )
-
-        finally:
-            conn.close()
-    def handle_razorpay_verify_payment(self):
-        user = self.get_current_user()
-
         if not user or user['id'] == 'guest':
             self.send_json_error("Please login to checkout", 401)
             return
 
         data = self.get_post_data()
-
-        razorpay_order_id = str(
-            data.get('razorpay_order_id', '')
-        ).strip()
-
-        razorpay_payment_id = str(
-            data.get('razorpay_payment_id', '')
-        ).strip()
-
-        razorpay_signature = str(
-            data.get('razorpay_signature', '')
-        ).strip()
-
-        if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
-            self.send_json_error("Payment verification data is missing", 400)
+        address = str(data.get('address', '')).strip()
+        if not address:
+            self.send_json_error("Delivery address is required", 400)
             return
 
-        try:
-            razorpay_client.utility.verify_payment_signature({
-                'razorpay_order_id': razorpay_order_id,
-                'razorpay_payment_id': razorpay_payment_id,
-                'razorpay_signature': razorpay_signature
-            })
-
-        except Exception:
-            self.send_json_error("Payment verification failed", 400)
+        if not config.RAZORPAY_KEY_ID or not config.RAZORPAY_KEY_SECRET:
+            self.send_json_error("Razorpay gateway is not configured on the server", 500)
             return
 
         conn = db.get_connection()
-
         try:
             with conn.cursor() as cursor:
+                # 1. Fetch user's cart items
                 cursor.execute("""
-                    SELECT cl.id as cloth_id,
-                           cl.price,
-                           c.quantity,
-                           c.size,
-                           c.color
+                    SELECT c.id as cart_id, cl.id as cloth_id, cl.price, c.quantity, c.size, c.color
                     FROM cart c
                     JOIN clothes cl ON c.cloth_id = cl.id
                     WHERE c.session_id = %s
                 """, (user['session_id'],))
-
                 items = cursor.fetchall()
 
                 if not items:
-                    self.send_json_error("Cart is empty", 400)
+                    self.send_json_error("Your cart is empty", 400)
                     return
 
-                total = sum(
-                    float(item['price']) * int(item['quantity'])
-                    for item in items
-                )
+                # 2. Calculate payable total server-side
+                total = sum(float(item['price']) * int(item['quantity']) for item in items)
+                amount_paise = int(round(total * 100))
 
+                if amount_paise <= 0:
+                    self.send_json_error("Invalid order amount", 400)
+                    return
+
+                # 3. Create TRY-FIT order record
                 cursor.execute("""
-                    INSERT INTO orders
-                    (user_id, total_amount, final_total,
-                     delivery_address, payment_method)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (
-                    user['id'],
-                    total,
-                    total,
-                    str(data.get('address', '')).strip(),
-                    'Razorpay'
-                ))
+                    INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method, status, payment_status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (user['id'], total, total, address, 'Razorpay', 'Pending', 'created'))
+                tryfit_order_id = cursor.lastrowid
 
-                order_id = cursor.lastrowid
-
+                # 4. Insert order items
                 for item in items:
                     cursor.execute("""
-                        INSERT INTO order_items
-                        (order_id, cloth_id, quantity, price, size, color)
+                        INSERT INTO order_items (order_id, cloth_id, quantity, price, size, color)
                         VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        order_id,
-                        item['cloth_id'],
-                        item['quantity'],
-                        item['price'],
-                        item['size'],
-                        item['color']
-                    ))
+                    """, (tryfit_order_id, item['cloth_id'], item['quantity'], item['price'], item['size'], item['color']))
 
+                # 5. Create Razorpay order via SDK
+                rzp_client = razorpay.Client(auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET))
+                razorpay_order = rzp_client.order.create({
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "receipt": f"tryfit_order_{tryfit_order_id}",
+                    "payment_capture": 1
+                })
+                razorpay_order_id = razorpay_order["id"]
+
+                # 6. Save Razorpay order ID to the TRY-FIT order
+                cursor.execute("UPDATE orders SET razorpay_order_id = %s WHERE id = %s", (razorpay_order_id, tryfit_order_id))
+                conn.commit()
+
+            # Note: Cart is NOT cleared here; only after successful payment verification.
+            self.send_json_success({
+                "success": True,
+                "tryfit_order_id": tryfit_order_id,
+                "order_id": razorpay_order_id,
+                "amount": amount_paise,
+                "currency": "INR",
+                "key_id": config.RAZORPAY_KEY_ID
+            })
+        except Exception as e:
+            conn.rollback()
+            print("Razorpay order creation error:", e)
+            self.send_json_error("Failed to initialize payment order", 500)
+        finally:
+            conn.close()
+
+    def handle_razorpay_verify_payment(self):
+        user = self.get_current_user()
+        if not user or user['id'] == 'guest':
+            self.send_json_error("Please login to checkout", 401)
+            return
+
+        data = self.get_post_data()
+        tryfit_order_id = data.get('tryfit_order_id')
+        razorpay_order_id = str(data.get('razorpay_order_id', '')).strip()
+        razorpay_payment_id = str(data.get('razorpay_payment_id', '')).strip()
+        razorpay_signature = str(data.get('razorpay_signature', '')).strip()
+
+        if not tryfit_order_id or not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+            self.send_json_error("Payment verification data is missing", 400)
+            return
+
+        if not config.RAZORPAY_KEY_ID or not config.RAZORPAY_KEY_SECRET:
+            self.send_json_error("Razorpay gateway is not configured on the server", 500)
+            return
+
+        conn = db.get_connection()
+        try:
+            with conn.cursor() as cursor:
+                # 1. Fetch TRY-FIT order and verify ownership
                 cursor.execute("""
-                    DELETE FROM cart
-                    WHERE session_id = %s
-                """, (user['session_id'],))
+                    SELECT id, user_id, final_total, status, payment_status, razorpay_order_id
+                    FROM orders
+                    WHERE id = %s
+                """, (tryfit_order_id,))
+                order = cursor.fetchone()
+
+                if not order:
+                    self.send_json_error("Order not found", 404)
+                    return
+
+                if int(order['user_id']) != int(user['id']):
+                    self.send_json_error("Unauthorized order access", 403)
+                    return
+
+                # 2. Idempotency / Double-payment protection
+                if str(order.get('payment_status', '')).lower() == 'paid':
+                    self.send_json_success({
+                        "success": True,
+                        "status": "already_paid",
+                        "order_id": tryfit_order_id,
+                        "message": "Order is already paid"
+                    })
+                    return
+
+                # 3. Verify Razorpay order ID matches stored order
+                if str(order.get('razorpay_order_id', '')).strip() != razorpay_order_id:
+                    self.send_json_error("Razorpay order ID mismatch", 400)
+                    return
+
+                # 4. Verify signature using Razorpay SDK
+                rzp_client = razorpay.Client(auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET))
+                try:
+                    rzp_client.utility.verify_payment_signature({
+                        'razorpay_order_id': razorpay_order_id,
+                        'razorpay_payment_id': razorpay_payment_id,
+                        'razorpay_signature': razorpay_signature
+                    })
+                except Exception as sig_err:
+                    print("Razorpay signature verification failed:", sig_err)
+                    self.send_json_error("Payment verification signature is invalid", 400)
+                    return
+
+                # 5. Fetch payment details from Razorpay to verify amount, currency and order link
+                try:
+                    payment_info = rzp_client.payment.fetch(razorpay_payment_id)
+                except Exception as pay_err:
+                    print("Failed to fetch payment details from Razorpay:", pay_err)
+                    self.send_json_error("Failed to verify payment with payment gateway", 502)
+                    return
+
+                expected_amount_paise = int(round(float(order['final_total']) * 100))
+                actual_amount_paise = int(payment_info.get('amount', 0))
+                actual_currency = str(payment_info.get('currency', '')).upper()
+                actual_order_id = str(payment_info.get('order_id', '')).strip()
+                actual_status = str(payment_info.get('status', '')).lower()
+
+                if actual_order_id != razorpay_order_id:
+                    self.send_json_error("Payment does not correspond to this order", 400)
+                    return
+
+                if actual_amount_paise != expected_amount_paise:
+                    self.send_json_error("Payment amount mismatch", 400)
+                    return
+
+                if actual_currency != 'INR':
+                    self.send_json_error("Payment currency mismatch", 400)
+                    return
+
+                if actual_status != 'captured':
+                    self.send_json_error(
+                        f"Payment status is '{actual_status}', not captured",
+                        400
+                    )
+                    return
+
+                # 6. Transaction: Mark order as PAID and clear user's cart
+                cursor.execute("""
+                    UPDATE orders
+                    SET razorpay_payment_id = %s,
+                        razorpay_signature = %s,
+                        payment_status = 'paid',
+                        status = 'Processing',
+                        payment_verified_at = NOW()
+                    WHERE id = %s
+                """, (razorpay_payment_id, razorpay_signature, tryfit_order_id))
+
+                # Clear only this user's cart
+                cursor.execute("DELETE FROM cart WHERE session_id = %s", (user['session_id'],))
 
                 conn.commit()
 
-            self.send_json_response({
+            self.send_json_success({
                 "success": True,
-                "message": "Payment successful and order placed",
-                "order_id": order_id
+                "status": "paid",
+                "order_id": tryfit_order_id,
+                "message": "Payment verified and order placed successfully"
             })
 
         except Exception as e:
             conn.rollback()
-            self.send_json_error(
-                f"Order creation failed: {e}",
-                500
-            )
-
+            print("Payment verification error:", e)
+            self.send_json_error("An error occurred while confirming your order", 500)
         finally:
             conn.close()
+
 
     
     def handle_wishlist_add(self):
