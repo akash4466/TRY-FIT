@@ -1100,6 +1100,50 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error rendering wishlist: {e}")
 
+    def do_HEAD(self):
+        parsed_url = urllib.parse.urlparse(self.path)
+        path = parsed_url.path
+
+        if path == '/':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            return
+
+        if path.startswith('/static/'):
+            filepath = path.lstrip('/')
+
+            if not os.path.exists(filepath):
+                self.send_error(404, "Asset not found")
+                return
+
+            if path.endswith('.css'):
+                content_type = 'text/css'
+            elif path.endswith('.jpg') or path.endswith('.jpeg'):
+                content_type = 'image/jpeg'
+            elif path.endswith('.png'):
+                content_type = 'image/png'
+            elif path.endswith('.webp'):
+                content_type = 'image/webp'
+            elif path.endswith('.gif'):
+                content_type = 'image/gif'
+            elif path.endswith('.svg'):
+                content_type = 'image/svg+xml'
+            elif path.endswith('.ico'):
+                content_type = 'image/x-icon'
+            else:
+                content_type = 'application/octet-stream'
+
+            self.send_response(200)
+            self.send_header('Content-Type', content_type)
+            self.send_header(
+                'Content-Length',
+                str(os.path.getsize(filepath))
+            )
+            self.end_headers()
+            return
+
+        self.send_error(404, "Page not found")
     def do_GET(self):
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
