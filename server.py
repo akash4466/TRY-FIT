@@ -12,11 +12,9 @@ import http.cookies
 
 import db
 import sms
-import config
 
-razorpay_client = razorpay.Client(
-    auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET)
-)
+
+
 
 class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
@@ -1510,6 +1508,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         data = self.get_post_data()
         address = str(data.get('address', '')).strip()
         payment_method = str(data.get('payment_method', 'Cash on Delivery')).strip()
+        if payment_method.lower() == 'razorpay':
+            self.send_response(303)
+            self.send_header('Location', '/checkout?error=' + urllib.parse.quote('Razorpay requires JavaScript. Please enable it.'))
+            self.end_headers()
+            return
 
         conn = db.get_connection()
         try:
@@ -1530,8 +1533,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 total = sum(float(i['price']) * i['quantity'] for i in items)
 
                 cursor.execute("""
-                    INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method, payment_status)
+                    VALUES (%s, %s, %s, %s, %s, 'created')
                 """, (user['id'], total, total, address, payment_method))
                 order_id = cursor.lastrowid
 

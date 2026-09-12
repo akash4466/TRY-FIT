@@ -9,8 +9,15 @@ class Config:
     
     # App Settings
     PORT = int(os.getenv('PORT', 5000))
-    DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
-    SECRET_KEY = os.getenv('SECRET_KEY', 'default_fallback_secret_key_change_in_prod')
+    DEBUG = os.getenv('DEBUG', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+    # In production (DEBUG=False) a missing SECRET_KEY should raise an error
+    if not DEBUG:
+        if not os.getenv('SECRET_KEY'):
+            raise RuntimeError('SECRET_KEY environment variable is required in production')
+        SECRET_KEY = os.getenv('SECRET_KEY')
+    else:
+        # Development fallback (can be overridden by env var)
+        SECRET_KEY = os.getenv('SECRET_KEY', 'default_fallback_secret_key_change_in_prod')
     JWT_EXPIRES_MINUTES = int(os.getenv('JWT_EXPIRES_MINUTES', 1440))
     # Razorpay credentials (test credentials should be set via .env)
     RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
