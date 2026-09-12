@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,7 +9,7 @@
 </head>
 <body>
 
-    {% include "header.html" %}
+    {{HEADER}}
 
     {{MESSAGE_ALERT}}
 
@@ -17,15 +18,17 @@
         <div class="hero-bg"></div>
         <div class="hero-content">
             <h1 class="hero-title">Find Your Fit<br>Before You Buy</h1>
-            <p class="hero-subtitle">Try premium fashion at home before making the final purchase. Experience luxury on your terms.</p>
+            <p class="hero-subtitle">
+                Try premium fashion at home before making the final purchase.
+                Experience luxury on your terms.
+            </p>
+
             <div class="hero-actions">
                 <a href="#shop" class="btn-primary">Explore Collection</a>
                 <a href="#how-it-works" class="btn-secondary">How It Works</a>
             </div>
         </div>
     </section>
-
-
 
     <!-- 6. PRODUCT GRID -->
     <main class="container">
@@ -36,36 +39,123 @@
     </main>
 
     <!-- 7. HOW IT WORKS -->
-    <section id="how-it-works" class="section-padding" style="background: var(--white); margin-top: 100px;">
+    <section
+        id="how-it-works"
+        class="section-padding"
+        style="background: var(--white); margin-top: 100px;"
+    >
         <div class="container">
-            <h2 style="font-size: 2rem; text-align: center; margin-bottom: 50px;">How It Works</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px;">
+            <h2 style="font-size: 2rem; text-align: center; margin-bottom: 50px;">
+                How It Works
+            </h2>
+
+            <div
+                style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 30px;
+                "
+            >
                 <div style="text-align: center;">
-                    <div style="font-family: var(--font-serif); font-size: 3rem; color: var(--border); margin-bottom: 10px;">01</div>
+                    <div
+                        style="
+                            font-family: var(--font-serif);
+                            font-size: 3rem;
+                            color: var(--border);
+                            margin-bottom: 10px;
+                        "
+                    >
+                        01
+                    </div>
                     <h3 style="margin-bottom: 10px;">Discover</h3>
-                    <p style="color: var(--muted); font-size: 0.9rem;">Explore premium fashion.</p>
+                    <p style="color: var(--muted); font-size: 0.9rem;">
+                        Explore premium fashion.
+                    </p>
                 </div>
+
                 <div style="text-align: center;">
-                    <div style="font-family: var(--font-serif); font-size: 3rem; color: var(--border); margin-bottom: 10px;">02</div>
+                    <div
+                        style="
+                            font-family: var(--font-serif);
+                            font-size: 3rem;
+                            color: var(--border);
+                            margin-bottom: 10px;
+                        "
+                    >
+                        02
+                    </div>
                     <h3 style="margin-bottom: 10px;">Try At Home</h3>
-                    <p style="color: var(--muted); font-size: 0.9rem;">Choose a 3-day or 7-day home trial.</p>
+                    <p style="color: var(--muted); font-size: 0.9rem;">
+                        Choose a 3-day or 7-day home trial.
+                    </p>
                 </div>
+
                 <div style="text-align: center;">
-                    <div style="font-family: var(--font-serif); font-size: 3rem; color: var(--border); margin-bottom: 10px;">03</div>
+                    <div
+                        style="
+                            font-family: var(--font-serif);
+                            font-size: 3rem;
+                            color: var(--border);
+                            margin-bottom: 10px;
+                        "
+                    >
+                        03
+                    </div>
                     <h3 style="margin-bottom: 10px;">Experience</h3>
-                    <p style="color: var(--muted); font-size: 0.9rem;">Wear it in your own environment.</p>
+                    <p style="color: var(--muted); font-size: 0.9rem;">
+                        Wear it in your own environment.
+                    </p>
                 </div>
+
                 <div style="text-align: center;">
-                    <div style="font-family: var(--font-serif); font-size: 3rem; color: var(--border); margin-bottom: 10px;">04</div>
+                    <div
+                        style="
+                            font-family: var(--font-serif);
+                            font-size: 3rem;
+                            color: var(--border);
+                            margin-bottom: 10px;
+                        "
+                    >
+                        04
+                    </div>
                     <h3 style="margin-bottom: 10px;">Decide</h3>
-                    <p style="color: var(--muted); font-size: 0.9rem;">Keep it or return it.</p>
+                    <p style="color: var(--muted); font-size: 0.9rem;">
+                        Keep it or return it.
+                    </p>
                 </div>
             </div>
         </div>
     </section>
 
-
-
     {{FOOTER}}
+
 </body>
 </html>
+```
+
+### What I changed
+
+Only the important template issue:
+
+```diff
+- {% include "header.html" %}
++ {{HEADER}}
+```
+
+I also formatted the long HTML attributes for readability. **No colors, sections, product grid, hero content, buttons, or functionality were changed.**
+
+### Now save this as
+
+```text
+C:\TRY-FIT\templates\index.html
+```
+
+Then run:
+
+```powershell
+cd C:\TRY-FIT
+git diff --check
+git status
+```
+
+**Don't push yet.** Send me the output of those two commands and I'll check it before you deploy again.
