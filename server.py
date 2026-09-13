@@ -153,7 +153,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             """
 
         back_btn_html = ""
-        if show_back_btn:
+        if show_back_btn and self.path != "/":
             # Determine safe back URL using Referer header (internal TRY-FIT only)
             back_url = "/"
             referer = self.headers.get("Referer")
