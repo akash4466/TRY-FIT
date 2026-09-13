@@ -6,6 +6,9 @@ load_dotenv()
 # Application mode & security
 DEBUG = os.environ.get('DEBUG', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
+# Flag to indicate production environment, used for secure cookie handling
+IS_PRODUCTION = os.getenv('ENV', 'development').strip().lower() == 'production'
+
 _secret_key = os.environ.get('SECRET_KEY', '').strip()
 if not DEBUG and not _secret_key:
     raise RuntimeError('SECRET_KEY environment variable is required in production')

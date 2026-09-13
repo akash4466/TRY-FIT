@@ -25,6 +25,19 @@ class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 class TryFitHandler(http.server.BaseHTTPRequestHandler):
+    # Helper to set secure cookies with HttpOnly, Secure (in production), SameSite=Lax
+    def set_secure_cookie(self, name, value, max_age=86400):
+        # Determine if running in production to set Secure flag
+        secure_flag = ''
+        try:
+            from config import IS_PRODUCTION
+            if IS_PRODUCTION:
+                secure_flag = '; Secure'
+        except ImportError:
+            pass
+        cookie_header = f"{name}={value}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure_flag}"
+        self.send_header('Set-Cookie', cookie_header)
+
 
     def get_post_data(self):
         content_length = int(self.headers.get('Content-Length', 0))
@@ -1642,7 +1655,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/guest-login':
             self.send_response(303)
-            self.send_header('Set-Cookie', 'session_id=guest; Path=/; HttpOnly; Max-Age=86400')
+            self.set_secure_cookie('session_id', 'guest', 86400)
             self.send_header('Location', '/')
             self.end_headers()
             return
@@ -1672,7 +1685,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/logout':
             self.send_response(303)
-            self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
+            self.set_secure_cookie('session_id', '', 0)
             self.send_header('Location', '/')
             self.end_headers()
             return
@@ -1850,7 +1863,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             if self.is_form_submission():
                 self.send_response(303)
                 if new_session:
-                    self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+                    self.set_secure_cookie('session_id', session_id, 86400)
                 self.send_header('Location', '/cart?success=' + urllib.parse.quote("Added to cart"))
                 self.end_headers()
             else:
@@ -1858,7 +1871,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 if new_session:
-                    self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+                    self.set_secure_cookie('session_id', session_id, 86400)
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": True, "message": "Added to cart", "cart_count": count}).encode('utf-8'))
         except Exception as e:
@@ -2306,7 +2319,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     self.send_response(303 if self.is_form_submission() else 200)
                     if not self.is_form_submission():
                         self.send_header('Content-Type', 'application/json')
-                    self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+                    self.set_secure_cookie('session_id', session_id, 86400)
                     if self.is_form_submission():
                         self.send_header('Location', '/admin/dashboard')
                     self.end_headers()
@@ -2592,14 +2605,14 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.send_header('Content-Length', str(len(encoded)))
-                self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+                self.set_secure_cookie('session_id', session_id, 86400)
                 self.end_headers()
                 self.wfile.write(encoded)
                 return
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+            self.set_secure_cookie('session_id', session_id, 86400)
             self.end_headers()
             self.wfile.write(json.dumps({"success": True, "message": "Successfully verified and logged in", "redirect": "/"}).encode('utf-8'))
 
@@ -2632,7 +2645,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(303 if self.is_form_submission() or 'text/html' in self.headers.get('Accept', '') else 200)
         if not self.is_form_submission() and 'text/html' not in self.headers.get('Accept', ''):
             self.send_header('Content-Type', 'application/json')
-        self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
+        self.set_secure_cookie('session_id', '', 0)
         if self.is_form_submission() or 'text/html' in self.headers.get('Accept', ''):
             self.send_header('Location', '/')
         self.end_headers()
@@ -2644,7 +2657,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(303 if self.is_form_submission() or 'text/html' in self.headers.get('Accept', '') else 200)
         if not self.is_form_submission() and 'text/html' not in self.headers.get('Accept', ''):
             self.send_header('Content-Type', 'application/json')
-        self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+        self.set_secure_cookie('session_id', session_id, 86400)
         if self.is_form_submission() or 'text/html' in self.headers.get('Accept', ''):
             self.send_header('Location', '/')
         self.end_headers()
