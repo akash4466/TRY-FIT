@@ -107,7 +107,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(content)))
             if filepath.startswith('static/') or filepath.startswith('/static/'):
-                self.send_header('Cache-Control', 'public, max-age=86400')
+                self.send_header('Cache-Control', 'no-cache, must-revalidate')
             self.end_headers()
             self.wfile.write(content)
         except Exception as e:
@@ -155,13 +155,94 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         back_btn_html = ""
         if show_back_btn:
             back_btn_html = """
-                    <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Go Back">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                        <span>Back</span>
+                    <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Go Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; margin-right: 12px; color: #111111; text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; user-select: none; box-sizing: border-box; vertical-align: middle; -webkit-appearance: none; appearance: none;">
+                        <span class="nav-back-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF; flex-shrink: 0; transition: all 0.22s ease;">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px; stroke: currentColor; stroke-width: 2.6; fill: none; transition: transform 0.22s ease;">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                        </span>
+                        <span class="nav-back-text" style="line-height: 1; display: inline-block;">Back</span>
                     </button>
             """
 
         return f"""
+        <style>
+            .nav-back-btn {{
+                all: unset !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                height: 34px !important;
+                padding: 0 14px 0 8px !important;
+                margin-right: 12px !important;
+                color: #111111 !important;
+                text-decoration: none !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
+                letter-spacing: 1.2px !important;
+                text-transform: uppercase !important;
+                background: #FFFFFF !important;
+                border: 1px solid #E5E2DC !important;
+                border-radius: 9999px !important;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                cursor: pointer !important;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+                transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                flex-shrink: 0 !important;
+                user-select: none !important;
+                box-sizing: border-box !important;
+                vertical-align: middle !important;
+                -webkit-appearance: none !important;
+                appearance: none !important;
+            }}
+            .nav-back-btn * {{
+                box-sizing: border-box !important;
+            }}
+            .nav-back-btn .nav-back-icon {{
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 22px !important;
+                height: 22px !important;
+                border-radius: 50% !important;
+                background: #111111 !important;
+                color: #FFFFFF !important;
+                transition: all 0.22s ease !important;
+                flex-shrink: 0 !important;
+            }}
+            .nav-back-btn .nav-back-icon svg {{
+                width: 12px !important;
+                height: 12px !important;
+                stroke: currentColor !important;
+                stroke-width: 2.6 !important;
+                fill: none !important;
+                transition: transform 0.22s ease !important;
+            }}
+            .nav-back-btn .nav-back-text {{
+                line-height: 1 !important;
+                display: inline-block !important;
+            }}
+            .nav-back-btn:hover {{
+                background: #111111 !important;
+                color: #FFFFFF !important;
+                border-color: #111111 !important;
+                transform: translateX(-3px) !important;
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14) !important;
+            }}
+            .nav-back-btn:hover .nav-back-icon {{
+                background: #FFFFFF !important;
+                color: #111111 !important;
+                transform: translateX(-2px) !important;
+            }}
+            .nav-back-btn:active {{
+                transform: translateX(-1px) scale(0.96) !important;
+            }}
+            .page-home:not(.has-history) .nav-back-btn,
+            body[data-page="home"]:not(.has-history) .nav-back-btn {{
+                display: none !important;
+            }}
+        </style>
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
@@ -313,6 +394,138 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         }
                     }
                 });
+
+                // ==========================================================
+                // 3D CARD SHUFFLE SORTING ENGINE
+                // ==========================================================
+                let isShuffling3D = false;
+
+                window.shuffleSortCatalog = function(sortMode, targetGrid) {
+                    if (isShuffling3D) return;
+
+                    const grid = targetGrid || document.querySelector('.products-grid');
+                    if (!grid) return;
+
+                    const cards = Array.from(grid.querySelectorAll('.product-card'));
+                    if (cards.length < 2) return;
+
+                    isShuffling3D = true;
+                    grid.classList.add('grid-shuffling-3d');
+
+                    // Stage 1: 3D Lift & Scatter Animation
+                    cards.forEach((card, i) => {
+                        const tiltY = (i % 2 === 0 ? 1 : -1) * (15 + (i % 4) * 4);
+                        const tiltX = ((i % 3) - 1) * 8;
+                        const rotZ = (i % 2 === 0 ? 1 : -1) * (3 + (i % 3) * 2);
+                        const liftZ = 75 + (i % 4) * 20;
+                        const shiftX = (i % 2 === 0 ? -12 : 12);
+
+                        card.style.willChange = 'transform, opacity, box-shadow';
+                        card.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease, box-shadow 0.4s ease';
+                        card.style.transform = `perspective(1400px) translate3d(${shiftX}px, -15px, ${liftZ}px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) rotateZ(${rotZ}deg) scale(0.91)`;
+                        card.style.boxShadow = '0 30px 60px rgba(0, 0, 0, 0.25), 0 12px 24px rgba(0, 0, 0, 0.12)';
+                        card.style.opacity = '0.78';
+                        card.style.zIndex = `${60 + i}`;
+                    });
+
+                    // Stage 2: DOM Re-ordering in 3D at midpoint
+                    setTimeout(() => {
+                        const sorted = [...cards].sort((a, b) => {
+                            const pA = parseFloat(a.dataset.price || a.querySelector('.buy-price')?.textContent?.replace(/[^0-9.]/g, '') || '0');
+                            const pB = parseFloat(b.dataset.price || b.querySelector('.buy-price')?.textContent?.replace(/[^0-9.]/g, '') || '0');
+                            const origA = parseInt(a.dataset.originalOrder !== undefined ? a.dataset.originalOrder : (a.dataset.id || '0'));
+                            const origB = parseInt(b.dataset.originalOrder !== undefined ? b.dataset.originalOrder : (b.dataset.id || '0'));
+
+                            if (sortMode === 'low-to-high') return (pA - pB) || (origA - origB);
+                            if (sortMode === 'high-to-low') return (pB - pA) || (origA - origB);
+                            return origA - origB;
+                        });
+
+                        sorted.forEach((card, i) => {
+                            grid.appendChild(card);
+                            const incomingY = (i % 2 === 0 ? -1 : 1) * 16;
+                            const incomingX = ((i % 3) - 1) * -6;
+                            card.style.transition = 'none';
+                            card.style.transform = `perspective(1400px) translate3d(0, 25px, 80px) rotateX(${incomingX}deg) rotateY(${incomingY}deg) scale(0.92)`;
+                        });
+
+                        // Stage 3: Snap, Settle & 3D Pop
+                        void grid.offsetHeight; // Force reflow
+
+                        requestAnimationFrame(() => {
+                            sorted.forEach((card, i) => {
+                                const delay = i * 35;
+                                card.style.transition = `transform 0.55s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, box-shadow 0.5s ease ${delay}ms, opacity 0.4s ease ${delay}ms`;
+                                card.style.transform = 'perspective(1400px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)';
+                                card.style.boxShadow = '';
+                                card.style.opacity = '1';
+                                card.style.zIndex = '';
+                            });
+
+                            // Cleanup after animation finishes
+                            const totalDuration = 550 + (sorted.length * 35);
+                            setTimeout(() => {
+                                sorted.forEach(card => {
+                                    card.style.transition = '';
+                                    card.style.transform = '';
+                                    card.style.willChange = '';
+                                    card.classList.add('card-3d-shimmer');
+                                    setTimeout(() => card.classList.remove('card-3d-shimmer'), 900);
+                                });
+                                grid.classList.remove('grid-shuffling-3d');
+                                isShuffling3D = false;
+                            }, totalDuration);
+                        });
+                    }, 320);
+
+                    // Sync UI button states & dropdowns
+                    document.querySelectorAll('.sort-3d-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.sort === sortMode);
+                    });
+                    document.querySelectorAll('.luxury-sort-dropdown, .category-layout select').forEach(sel => {
+                        if (sel.value !== sortMode) {
+                            sel.value = sortMode;
+                        }
+                    });
+
+                    // Toast Feedback
+                    if (sortMode === 'low-to-high') {
+                        showToast('⇅ 3D Shuffled: Price Low to High');
+                    } else if (sortMode === 'high-to-low') {
+                        showToast('⇵ 3D Shuffled: Price High to Low');
+                    } else if (sortMode === 'featured') {
+                        showToast('✨ 3D Shuffled: Featured Collection');
+                    }
+                };
+
+                // Click delegation for sort pill buttons
+                document.addEventListener('click', function(e) {
+                    const sortBtn = e.target.closest('.sort-3d-btn');
+                    if (sortBtn && sortBtn.dataset.sort) {
+                        e.preventDefault();
+                        const mode = sortBtn.dataset.sort;
+                        const container = sortBtn.closest('.catalog-sort-bar')?.nextElementSibling?.querySelector('.products-grid') ||
+                                          document.querySelector('.products-grid');
+                        window.shuffleSortCatalog(mode, container);
+                    }
+                });
+
+                // Change event for sort dropdowns
+                document.addEventListener('change', function(e) {
+                    const select = e.target.closest('.luxury-sort-dropdown, .category-layout select');
+                    if (select) {
+                        const val = select.value.toLowerCase();
+                        let mode = 'featured';
+                        if (val.includes('low to high') || val === 'low-to-high') {
+                            mode = 'low-to-high';
+                        } else if (val.includes('high to low') || val === 'high-to-low') {
+                            mode = 'high-to-low';
+                        }
+                        const container = select.closest('.category-layout')?.querySelector('.products-grid') ||
+                                          document.querySelector('.products-grid');
+                        window.shuffleSortCatalog(mode, container);
+                    }
+                });
             });
 
             // Reusable AJAX Cart & Wishlist functions (no page refresh)
@@ -452,7 +665,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 return '<div class="empty-trials"><p>No clothing items available right now.</p></div>'
 
             cards = []
-            for item in items:
+            for idx, item in enumerate(items):
                 price_int = int(float(item['price']))
                 trial_int = int(float(item['trial_price']))
 
@@ -470,7 +683,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     link_href = f"/product?id={item['id']}"
 
                 cards.append(f"""
-                <div class="product-card" id="product-card-{item['id']}">
+                <div class="product-card" id="product-card-{item['id']}" data-id="{item['id']}" data-price="{price_int}" data-trial-price="{trial_int}" data-name="{item['name']}" data-category="{item['category']}" data-original-order="{idx}">
                     <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -597,7 +810,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 return '<div class="empty-trials"><p>No clothing items available in this category right now.</p></div>'
 
             cards = []
-            for item in items:
+            for idx, item in enumerate(items):
                 price_int = int(float(item['price']))
                 trial_int = int(float(item['trial_price']))
 
@@ -615,7 +828,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     link_href = f"/product?id={item['id']}"
 
                 cards.append(f"""
-                <div class="product-card" id="product-card-{item['id']}">
+                <div class="product-card" id="product-card-{item['id']}" data-id="{item['id']}" data-price="{price_int}" data-trial-price="{trial_int}" data-name="{item['name']}" data-category="{item['category']}" data-original-order="{idx}">
                     <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -985,7 +1198,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 catalog_html = '<div class="empty-state"><p>No pieces matched your search.</p></div>'
             else:
                 cards = []
-                for item in items:
+                for idx, item in enumerate(items):
                     price_int = int(float(item['price']))
                     trial_int = int(float(item['trial_price']))
 
@@ -1003,7 +1216,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         link_href = f"/product?id={item['id']}"
 
                     cards.append(f"""
-                    <div class="product-card" id="product-card-{item['id']}">
+                    <div class="product-card" id="product-card-{item['id']}" data-id="{item['id']}" data-price="{price_int}" data-trial-price="{trial_int}" data-name="{item['name']}" data-category="{item['category']}" data-original-order="{idx}">
                         <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -1324,7 +1537,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 str(os.path.getsize(filepath))
             )
             if filepath.startswith('static/') or filepath.startswith('/static/'):
-                self.send_header('Cache-Control', 'public, max-age=86400')
+                self.send_header('Cache-Control', 'no-cache, must-revalidate')
             self.end_headers()
             return
 
@@ -2025,7 +2238,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
 
 
-    
+
     def handle_wishlist_add(self):
         user = self.get_current_user()
         if not user or user['id'] == 'guest':

@@ -16,12 +16,14 @@
     <header class="main-header">
         <div class="container nav-wrapper">
             <div class="nav-left">
-                <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Back">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                    <span>Back</span>
+                <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; margin-right: 12px; color: #111111; text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; user-select: none; box-sizing: border-box; vertical-align: middle; -webkit-appearance: none; appearance: none;">
+                    <span class="nav-back-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF; flex-shrink: 0; transition: all 0.22s ease;">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px; stroke: currentColor; stroke-width: 2.6; fill: none; transition: transform 0.22s ease;">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                    </span>
+                    <span class="nav-back-text" style="line-height: 1; display: inline-block;">Back</span>
                 </button>
                 <label for="menu-toggle" class="mobile-menu-btn nav-icon-btn" aria-label="Menu" style="cursor: pointer;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
@@ -143,8 +145,34 @@
 
     <!-- PRODUCT CATALOG -->
     <main class="container">
+        <!-- 3D Shuffle Catalog Sort Bar -->
+        <div class="catalog-sort-bar">
+            <div class="catalog-sort-info">
+                <span class="catalog-sort-title">Collection Pieces</span>
+                <span class="sort-3d-badge">3D Interactive</span>
+            </div>
+            <div class="catalog-sort-controls">
+                <div class="sort-pills-container">
+                    <button type="button" class="sort-3d-btn active" data-sort="featured">Featured</button>
+                    <button type="button" class="sort-3d-btn" data-sort="low-to-high">
+                        <span>Price: Low to High</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                    </button>
+                    <button type="button" class="sort-3d-btn" data-sort="high-to-low">
+                        <span>Price: High to Low</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                    </button>
+                </div>
+                <select class="luxury-sort-dropdown" aria-label="Sort products">
+                    <option value="featured">Sort: Featured</option>
+                    <option value="low-to-high">Price: Low to High</option>
+                    <option value="high-to-low">Price: High to Low</option>
+                </select>
+            </div>
+        </div>
+
         <!-- Dynamic Product Grid -->
-        <div class="products-grid" id="catalog-container" style="margin-top: 40px; margin-bottom: 100px;">
+        <div class="products-grid" id="catalog-container" style="margin-top: 10px; margin-bottom: 100px;">
             {{CATALOG_GRID}}
         </div>
     </main>
