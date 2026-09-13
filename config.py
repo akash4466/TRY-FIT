@@ -3,6 +3,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Application mode & security
+DEBUG = os.environ.get('DEBUG', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+
+_secret_key = os.environ.get('SECRET_KEY')
+if not DEBUG and not _secret_key:
+    raise RuntimeError('SECRET_KEY environment variable is required in production')
+SECRET_KEY = _secret_key or 'tryfit_dev_fallback_secret_key_insecure'
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+
 # Database configurations
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = int(os.environ.get('DB_PORT', 3306))

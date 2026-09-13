@@ -578,8 +578,9 @@ def init_db():
             """
         )
 
-        # Migration: Ensure Razorpay columns exist on existing orders table
+        # Migration: Ensure Razorpay and customer columns exist on existing orders table
         migration_columns = [
+            ("customer_name", "VARCHAR(100) NULL"),
             ("razorpay_order_id", "VARCHAR(255) NULL"),
             ("razorpay_payment_id", "VARCHAR(255) NULL"),
             ("razorpay_signature", "VARCHAR(255) NULL"),
@@ -591,6 +592,10 @@ def init_db():
             if not cursor.fetchone():
                 cursor.execute(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}")
 
+        # Migration: Ensure index on orders(user_id) exists
+        cursor.execute("SHOW INDEX FROM orders WHERE Column_name = 'user_id'")
+        if not cursor.fetchone():
+            cursor.execute("CREATE INDEX idx_orders_user_id ON orders (user_id)")
 
         # -----------------------------------------------------
         # ORDER ITEMS
@@ -611,10 +616,37 @@ def init_db():
                     ON DELETE CASCADE,
                 FOREIGN KEY (cloth_id)
                     REFERENCES clothes(id)
-                    ON DELETE CASCADE
+                    ON DELETE RESTRICT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
         )
+
+        # Migration: Ensure foreign key on order_items(cloth_id) exists safely
+        try:
+            cursor.execute("""
+                SELECT CONSTRAINT_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'cloth_id'
+                  AND REFERENCED_TABLE_NAME = 'clothes'
+            """, (config.DB_NAME,))
+            if not cursor.fetchone():
+                # Inspect for orphaned records without deleting any data
+                cursor.execute("""
+                    SELECT COUNT(*) as orphans
+                    FROM order_items oi
+                    LEFT JOIN clothes c ON oi.cloth_id = c.id
+                    WHERE c.id IS NULL
+                """)
+                res = cursor.fetchone()
+                if res and res.get('orphans', 0) == 0:
+                    cursor.execute("""
+                        ALTER TABLE order_items
+                        ADD CONSTRAINT fk_order_items_cloth
+                        FOREIGN KEY (cloth_id) REFERENCES clothes(id)
+                        ON DELETE RESTRICT
+                    """)
+        except Exception as fk_err:
+            print(f"Notice during foreign key verification: {fk_err}")
 
         conn.commit()
 

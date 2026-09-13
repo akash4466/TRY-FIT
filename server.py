@@ -9,11 +9,16 @@ import random
 import datetime
 import uuid
 import http.cookies
+import logging
 
 import db
 import sms
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
+logger = logging.getLogger("tryfit")
 
 
 class ReusableTCPServer(socketserver.TCPServer):
@@ -44,11 +49,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
-    def send_json_error(self, message, status=400):
+    def send_json_error(self, message, status=400, code=None):
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
-        self.wfile.write(json.dumps({"error": message}).encode('utf-8'))
+        resp = {
+            "success": False,
+            "error": message
+        }
+        if code:
+            resp["code"] = code
+        self.wfile.write(json.dumps(resp).encode('utf-8'))
 
     def is_form_submission(self):
         content_type = self.headers.get('Content-Type', '')
@@ -95,9 +106,12 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(content)))
+            if filepath.startswith('static/') or filepath.startswith('/static/'):
+                self.send_header('Cache-Control', 'public, max-age=86400')
             self.end_headers()
             self.wfile.write(content)
         except Exception as e:
+            logger.warning("File not found: %s (%s)", filepath, e)
             self.send_error(404, f"File not found: {e}")
 
     def get_cart_count(self, user):
@@ -142,6 +156,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
+                    <a href="/" class="logo">TRY-FIT</a>
                     <nav class="nav-menu">
                         <a href="/category?category=all" class="nav-menu-link">All</a>
                         <a href="/category?category=men" class="nav-menu-link">Men</a>
@@ -153,15 +168,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     </nav>
                 </div>
 
-                <div class="nav-center">
-                    <a href="/" class="logo">TRY-FIT</a>
-                </div>
-
                 <div class="nav-right">
                     <form action="/search" method="GET" class="search-form">
-                        <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header" style="text-align: center;">
+                        <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header">
                         <button type="submit" class="search-btn" aria-label="Search">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
                     </form>
                     {account_html}
@@ -983,7 +994,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 finally:
                     conn.close()
 
-            content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"₹{total:,.2f}")
+            user_name = user.get('name', '') if user and user.get('id') != 'guest' else ''
+            content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"₹{total:,.2f}", USER_NAME=user_name)
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -1144,6 +1156,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 'Content-Length',
                 str(os.path.getsize(filepath))
             )
+            if filepath.startswith('static/') or filepath.startswith('/static/'):
+                self.send_header('Cache-Control', 'public, max-age=86400')
             self.end_headers()
             return
 
@@ -1507,6 +1521,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         data = self.get_post_data()
         address = str(data.get('address', '')).strip()
+        customer_name = str(data.get('name', '')).strip() or (user.get('name', '') if user else '')
         payment_method = str(data.get('payment_method', 'Cash on Delivery')).strip()
         if payment_method.lower() == 'razorpay':
             self.send_response(303)
@@ -1533,9 +1548,9 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 total = sum(float(i['price']) * i['quantity'] for i in items)
 
                 cursor.execute("""
-                    INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method, payment_status)
-                    VALUES (%s, %s, %s, %s, %s, 'created')
-                """, (user['id'], total, total, address, payment_method))
+                    INSERT INTO orders (user_id, customer_name, total_amount, final_total, delivery_address, payment_method, payment_status)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'created')
+                """, (user['id'], customer_name, total, total, address, payment_method))
                 order_id = cursor.lastrowid
 
                 for i in items:
@@ -1562,12 +1577,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         data = self.get_post_data()
         address = str(data.get('address', '')).strip()
+        customer_name = str(data.get('name', '')).strip() or (user.get('name', '') if user else '')
         if not address:
-            self.send_json_error("Delivery address is required", 400)
+            self.send_json_error("Delivery address is required", 400, code="ADDRESS_REQUIRED")
             return
 
         if not config.RAZORPAY_KEY_ID or not config.RAZORPAY_KEY_SECRET:
-            self.send_json_error("Razorpay gateway is not configured on the server", 500)
+            self.send_json_error("Razorpay gateway is not configured on the server", 500, code="GATEWAY_NOT_CONFIGURED")
             return
 
         conn = db.get_connection()
@@ -1575,30 +1591,29 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             with conn.cursor() as cursor:
                 # 1. Fetch user's cart items
                 cursor.execute("""
-                    SELECT c.id as cart_id, cl.id as cloth_id, cl.price, c.quantity, c.size, c.color
-                    FROM cart c
-                    JOIN clothes cl ON c.cloth_id = cl.id
+                    SELECT c.id as cart_id, cl.id as cloth_id, cl.name, cl.price, c.quantity, c.size, c.color
+                    FROM cart c JOIN clothes cl ON c.cloth_id = cl.id
                     WHERE c.session_id = %s
                 """, (user['session_id'],))
                 items = cursor.fetchall()
 
                 if not items:
-                    self.send_json_error("Your cart is empty", 400)
+                    self.send_json_error("Cart is empty", 400, code="CART_EMPTY")
                     return
 
-                # 2. Calculate payable total server-side
-                total = sum(float(item['price']) * int(item['quantity']) for item in items)
+                # 2. Calculate totals
+                total = sum(float(i['price']) * i['quantity'] for i in items)
                 amount_paise = int(round(total * 100))
 
                 if amount_paise <= 0:
-                    self.send_json_error("Invalid order amount", 400)
+                    self.send_json_error("Invalid order amount", 400, code="INVALID_AMOUNT")
                     return
 
                 # 3. Create TRY-FIT order record
                 cursor.execute("""
-                    INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method, status, payment_status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (user['id'], total, total, address, 'Razorpay', 'Pending', 'created'))
+                    INSERT INTO orders (user_id, customer_name, total_amount, final_total, delivery_address, payment_method, status, payment_status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (user['id'], customer_name, total, total, address, 'Razorpay', 'Pending', 'created'))
                 tryfit_order_id = cursor.lastrowid
 
                 # 4. Insert order items
@@ -1641,7 +1656,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def handle_razorpay_verify_payment(self):
         user = self.get_current_user()
         if not user or user['id'] == 'guest':
-            self.send_json_error("Please login to checkout", 401)
+            self.send_json_error("Please login to checkout", 401, code="UNAUTHORIZED")
             return
 
         data = self.get_post_data()
@@ -1651,11 +1666,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         razorpay_signature = str(data.get('razorpay_signature', '')).strip()
 
         if not tryfit_order_id or not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
-            self.send_json_error("Payment verification data is missing", 400)
+            self.send_json_error("Payment verification data is missing", 400, code="MISSING_PAYMENT_DATA")
             return
 
         if not config.RAZORPAY_KEY_ID or not config.RAZORPAY_KEY_SECRET:
-            self.send_json_error("Razorpay gateway is not configured on the server", 500)
+            self.send_json_error("Razorpay gateway is not configured on the server", 500, code="GATEWAY_NOT_CONFIGURED")
             return
 
         conn = db.get_connection()
@@ -1670,11 +1685,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 order = cursor.fetchone()
 
                 if not order:
-                    self.send_json_error("Order not found", 404)
+                    self.send_json_error("Order not found", 404, code="ORDER_NOT_FOUND")
                     return
 
                 if int(order['user_id']) != int(user['id']):
-                    self.send_json_error("Unauthorized order access", 403)
+                    self.send_json_error("Unauthorized order access", 403, code="FORBIDDEN")
                     return
 
                 # 2. Idempotency / Double-payment protection
@@ -1689,7 +1704,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
                 # 3. Verify Razorpay order ID matches stored order
                 if str(order.get('razorpay_order_id', '')).strip() != razorpay_order_id:
-                    self.send_json_error("Razorpay order ID mismatch", 400)
+                    self.send_json_error("Razorpay order ID mismatch", 400, code="ORDER_ID_MISMATCH")
                     return
 
                 # 4. Verify signature using Razorpay SDK
@@ -1701,16 +1716,16 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         'razorpay_signature': razorpay_signature
                     })
                 except Exception as sig_err:
-                    print("Razorpay signature verification failed:", sig_err)
-                    self.send_json_error("Payment verification signature is invalid", 400)
+                    logger.error("Razorpay signature verification failed: %s", sig_err)
+                    self.send_json_error("Payment verification signature is invalid", 400, code="INVALID_SIGNATURE")
                     return
 
                 # 5. Fetch payment details from Razorpay to verify amount, currency and order link
                 try:
                     payment_info = rzp_client.payment.fetch(razorpay_payment_id)
                 except Exception as pay_err:
-                    print("Failed to fetch payment details from Razorpay:", pay_err)
-                    self.send_json_error("Failed to verify payment with payment gateway", 502)
+                    logger.error("Failed to fetch payment details from Razorpay: %s", pay_err)
+                    self.send_json_error("Failed to verify payment with payment gateway", 502, code="GATEWAY_FETCH_FAILED")
                     return
 
                 expected_amount_paise = int(round(float(order['final_total']) * 100))
@@ -1720,21 +1735,22 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 actual_status = str(payment_info.get('status', '')).lower()
 
                 if actual_order_id != razorpay_order_id:
-                    self.send_json_error("Payment does not correspond to this order", 400)
+                    self.send_json_error("Payment does not correspond to this order", 400, code="ORDER_LINK_MISMATCH")
                     return
 
                 if actual_amount_paise != expected_amount_paise:
-                    self.send_json_error("Payment amount mismatch", 400)
+                    self.send_json_error("Payment amount mismatch", 400, code="AMOUNT_MISMATCH")
                     return
 
                 if actual_currency != 'INR':
-                    self.send_json_error("Payment currency mismatch", 400)
+                    self.send_json_error("Payment currency mismatch", 400, code="CURRENCY_MISMATCH")
                     return
 
                 if actual_status != 'captured':
                     self.send_json_error(
                         f"Payment status is '{actual_status}', not captured",
-                        400
+                        400,
+                        code="PAYMENT_NOT_CAPTURED"
                     )
                     return
 
@@ -1763,8 +1779,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         except Exception as e:
             conn.rollback()
-            print("Payment verification error:", e)
-            self.send_json_error("An error occurred while confirming your order", 500)
+            logger.error("Payment verification error: %s", e)
+            self.send_json_error("An error occurred while confirming your order", 500, code="SERVER_ERROR")
         finally:
             conn.close()
 
@@ -1823,8 +1839,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 cursor.execute("SELECT id FROM users WHERE email = %s AND role = 'admin'", (email,))
                 user = cursor.fetchone()
 
-                # Using a hardcoded password for simplicity for the admin account for now
-                if user and password == "admin123":
+                if user and config.ADMIN_PASSWORD and password == config.ADMIN_PASSWORD:
                     session_id = uuid.uuid4().hex
                     cursor.execute("INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)", (session_id, user['id']))
                     conn.commit()
