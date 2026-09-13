@@ -1,0 +1,14 @@
+<nav class="breadcrumb" aria-label="breadcrumb">
+  <ul>
+    {% for crumb in BREADCRUMB %}
+      <li>
+        {% if not loop.last %}
+          <a href="{{ crumb.url }}">{{ crumb.label }}</a>
+          <svg class="breadcrumb-sep" width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 1L5 5L1 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        {% else %}
+          <span aria-current="page">{{ crumb.label }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</nav>
