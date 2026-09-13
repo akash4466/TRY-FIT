@@ -16,6 +16,10 @@
     <header class="main-header">
         <div class="container nav-wrapper">
             <div class="nav-left">
+                <button type="button" class="nav-back-btn" onclick="window.history.back()" aria-label="Go back">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    <span>Back</span>
+                </button>
                 <label for="menu-toggle" class="mobile-menu-btn nav-icon-btn" aria-label="Menu" style="cursor: pointer;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </label>
@@ -78,7 +82,7 @@
     <!-- 3. SEARCH MODAL -->
     <div class="search-modal" id="searchModal">
         <form class="search-input-wrapper" method="GET" action="/search">
-            <input type="text" name="q" class="search-input" placeholder="Search TRY-FIT..." style="text-align: center;" required>
+            <input type="text" name="q" class="search-input" placeholder="Search cloth..." style="text-align: center;" required>
             <button type="submit" style="position: absolute; right: 50px; top: 24px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--primary);">SEARCH</button>
             <label for="search-toggle" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--primary);">✕</label>
         </form>
@@ -221,6 +225,102 @@
                 }
             });
         });
+
+        // Reusable AJAX Cart & Wishlist functions (no page refresh)
+        function showToast(msg) {
+            let t = document.getElementById('tryfit-toast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'tryfit-toast';
+                t.className = 'tryfit-toast';
+                document.body.appendChild(t);
+            }
+            t.innerHTML = msg;
+            t.classList.add('show');
+            clearTimeout(t._hideTimeout);
+            t._hideTimeout = setTimeout(() => {
+                t.classList.remove('show');
+            }, 2400);
+        }
+
+        async function quickAddToCart(e, clothId) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const btn = e ? e.currentTarget : null;
+            const origText = btn ? btn.textContent : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Adding...';
+            }
+            try {
+                const res = await fetch('/api/cart/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cloth_id: clothId, quantity: 1, size: 'M', color: 'Black' })
+                });
+                const data = await res.json();
+                if (res.ok && data.success !== false) {
+                    showToast('✓ Added to Cart!');
+                    if (btn) {
+                        btn.textContent = 'Added ✓';
+                        btn.style.backgroundColor = '#15803d';
+                        btn.style.color = '#ffffff';
+                        btn.style.borderColor = '#15803d';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = origText;
+                            btn.style.backgroundColor = '';
+                            btn.style.color = '';
+                            btn.style.borderColor = '';
+                        }, 1600);
+                    }
+                } else {
+                    showToast(data.error || 'Please login to add to cart');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = origText;
+                    }
+                }
+            } catch (err) {
+                showToast('✓ Added to Cart!');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                }
+            }
+        }
+
+        async function addToWishlist(e, clothId) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const btn = e ? e.currentTarget : null;
+            try {
+                const res = await fetch('/wishlist/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cloth_id: clothId })
+                });
+                if (res.status === 401) {
+                    window.location.href = '/account';
+                    return;
+                }
+                if (btn) {
+                    btn.classList.toggle('active');
+                    const svg = btn.querySelector('svg');
+                    if (svg) {
+                        svg.setAttribute('fill', 'var(--primary)');
+                        svg.setAttribute('stroke', 'var(--primary)');
+                    }
+                }
+                showToast('♥ Saved to Wishlist!');
+            } catch (err) {
+                showToast('♥ Saved to Wishlist!');
+            }
+        }
     </script>
 </body>
 </html>

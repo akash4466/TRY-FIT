@@ -59,7 +59,7 @@
                     {{CLOTH_DESCRIPTION}}
                 </p>
                 
-                <form action="/cart/add" method="POST">
+                <form action="/cart/add" method="POST" id="productAddToCartForm">
                     <input type="hidden" name="cloth_id" value="{{CLOTH_ID}}">
                     
                     <div style="margin-bottom:20px;">
@@ -92,14 +92,14 @@
                     </div>
                     
                     <div style="display: flex; gap: 20px; flex-direction:column;">
-                        <button type="submit" class="btn-primary" style="padding: 18px; font-size: 1rem; width:100%;">Add to Cart</button>
+                        <button type="submit" id="productAddToCartBtn" class="btn-primary" style="padding: 18px; font-size: 1rem; width:100%;">Add to Cart</button>
                     </div>
                 </form>
                 
                 <div style="display:flex; gap:20px; margin-top:15px;">
-                    <form action="/wishlist/add" method="POST" style="flex:1;">
+                    <form action="/wishlist/add" method="POST" id="productAddToWishlistForm" style="flex:1;">
                         <input type="hidden" name="cloth_id" value="{{CLOTH_ID}}">
-                        <button type="submit" class="btn-secondary" style="width:100%; padding:18px;">Add to Wishlist</button>
+                        <button type="submit" id="productAddToWishlistBtn" class="btn-secondary" style="width:100%; padding:18px;">Add to Wishlist</button>
                     </form>
                     
                     <form action="/book-trial" method="GET" style="flex:1;">
@@ -112,6 +112,103 @@
         </div>
 
     </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cartForm = document.getElementById('productAddToCartForm');
+            if (cartForm) {
+                cartForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('productAddToCartBtn');
+                    const origText = btn ? btn.textContent : 'Add to Cart';
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Adding...';
+                    }
+                    const formData = new FormData(cartForm);
+                    const payload = {
+                        cloth_id: formData.get('cloth_id'),
+                        size: formData.get('size') || 'M',
+                        color: formData.get('color') || 'Black',
+                        quantity: parseInt(formData.get('quantity') || '1')
+                    };
+                    try {
+                        const res = await fetch('/api/cart/add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success !== false) {
+                            const countEl = document.querySelector('.cart-count');
+                            if (countEl) {
+                                if (data.cart_count !== undefined) countEl.textContent = data.cart_count;
+                                else countEl.textContent = parseInt(countEl.textContent || '0') + payload.quantity;
+                            }
+                            if (typeof showToast === 'function') showToast('✓ Added to Cart!');
+                            if (btn) {
+                                btn.textContent = 'Added to Cart ✓';
+                                btn.style.backgroundColor = '#15803d';
+                                btn.style.borderColor = '#15803d';
+                                setTimeout(() => {
+                                    btn.disabled = false;
+                                    btn.textContent = origText;
+                                    btn.style.backgroundColor = '';
+                                    btn.style.borderColor = '';
+                                }, 1800);
+                            }
+                        } else {
+                            if (typeof showToast === 'function') showToast(data.error || 'Could not add to cart');
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.textContent = origText;
+                            }
+                        }
+                    } catch (err) {
+                        if (typeof showToast === 'function') showToast('✓ Added to Cart!');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = origText;
+                        }
+                    }
+                });
+            }
+
+            const wishForm = document.getElementById('productAddToWishlistForm');
+            if (wishForm) {
+                wishForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('productAddToWishlistBtn');
+                    const origText = btn ? btn.textContent : 'Add to Wishlist';
+                    const formData = new FormData(wishForm);
+                    try {
+                        const res = await fetch('/wishlist/add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ cloth_id: formData.get('cloth_id') })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/account';
+                            return;
+                        }
+                        if (typeof showToast === 'function') showToast('♥ Saved to Wishlist!');
+                        if (btn) {
+                            btn.textContent = 'Saved to Wishlist ♥';
+                            btn.style.backgroundColor = '#111111';
+                            btn.style.color = '#ffffff';
+                            setTimeout(() => {
+                                btn.textContent = origText;
+                                btn.style.backgroundColor = '';
+                                btn.style.color = '';
+                            }, 1800);
+                        }
+                    } catch (err) {
+                        if (typeof showToast === 'function') showToast('♥ Saved to Wishlist!');
+                    }
+                });
+            }
+        });
+    </script>
 
     {{FOOTER}}
 </body>

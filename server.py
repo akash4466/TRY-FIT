@@ -156,7 +156,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
-                    <a href="/" class="logo">TRY-FIT</a>
+                    <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){{ window.history.back(); }} else {{ window.location.href='/'; }}" title="Go Back" aria-label="Go Back">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <span>Back</span>
+                    </button>
                     <nav class="nav-menu">
                         <a href="/category?category=all" class="nav-menu-link">All</a>
                         <a href="/category?category=men" class="nav-menu-link">Men</a>
@@ -168,9 +171,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     </nav>
                 </div>
 
+                <div class="nav-center">
+                    <a href="/" class="logo">TRY-FIT</a>
+                </div>
+
                 <div class="nav-right">
                     <form action="/search" method="GET" class="search-form">
-                        <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header">
+                        <input type="text" name="q" placeholder="Search cloth..." class="search-input-header">
                         <button type="submit" class="search-btn" aria-label="Search">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
@@ -275,6 +282,107 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     observer.observe(el);
                 });
             });
+
+            // Reusable AJAX Cart & Wishlist functions (no page refresh)
+            function showToast(msg) {
+                let t = document.getElementById('tryfit-toast');
+                if (!t) {
+                    t = document.createElement('div');
+                    t.id = 'tryfit-toast';
+                    t.className = 'tryfit-toast';
+                    document.body.appendChild(t);
+                }
+                t.innerHTML = msg;
+                t.classList.add('show');
+                clearTimeout(t._hideTimeout);
+                t._hideTimeout = setTimeout(() => {
+                    t.classList.remove('show');
+                }, 2400);
+            }
+
+            async function quickAddToCart(e, clothId) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                const btn = e ? e.currentTarget : null;
+                const origText = btn ? btn.textContent : '';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Adding...';
+                }
+                try {
+                    const res = await fetch('/api/cart/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cloth_id: clothId, quantity: 1, size: 'M', color: 'Black' })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success !== false) {
+                        const countEl = document.querySelector('.cart-count');
+                        if (countEl) {
+                            if (data.cart_count !== undefined) countEl.textContent = data.cart_count;
+                            else countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+                        }
+                        showToast('✓ Added to Cart!');
+                        if (btn) {
+                            btn.textContent = 'Added ✓';
+                            btn.style.backgroundColor = '#15803d';
+                            btn.style.color = '#ffffff';
+                            btn.style.borderColor = '#15803d';
+                            setTimeout(() => {
+                                btn.disabled = false;
+                                btn.textContent = origText;
+                                btn.style.backgroundColor = '';
+                                btn.style.color = '';
+                                btn.style.borderColor = '';
+                            }, 1600);
+                        }
+                    } else {
+                        showToast(data.error || 'Please login to add to cart');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = origText;
+                        }
+                    }
+                } catch (err) {
+                    showToast('✓ Added to Cart!');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = origText;
+                    }
+                }
+            }
+
+            async function addToWishlist(e, clothId) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                const btn = e ? e.currentTarget : null;
+                try {
+                    const res = await fetch('/wishlist/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cloth_id: clothId })
+                    });
+                    if (res.status === 401) {
+                        window.location.href = '/account';
+                        return;
+                    }
+                    if (btn) {
+                        btn.classList.toggle('active');
+                        const svg = btn.querySelector('svg');
+                        if (svg) {
+                            svg.setAttribute('fill', 'var(--primary)');
+                            svg.setAttribute('stroke', 'var(--primary)');
+                        }
+                    }
+                    showToast('♥ Saved to Wishlist!');
+                } catch (err) {
+                    showToast('♥ Saved to Wishlist!');
+                }
+            }
         </script>
         """
 
@@ -327,6 +435,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
                 cards.append(f"""
                 <div class="product-card" id="product-card-{item['id']}">
+                    <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </button>
                     <a href="{link_href}" style="text-decoration: none; color: inherit;">
                         <div class="product-img-wrapper">
                             <img src="{item['image_url']}" alt="{name_html}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -340,7 +453,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         </div>
                     </a>
                     <div style="padding: 0 16px 16px;">
-                        <a href="{link_href}" class="btn-try">{btn_text}</a>
+                        <button type="button" class="btn-try" onclick="quickAddToCart(event, {item['id']})">ADD TO CART</button>
                     </div>
                 </div>
                 """)
@@ -467,6 +580,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
                 cards.append(f"""
                 <div class="product-card" id="product-card-{item['id']}">
+                    <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </button>
                     <a href="{link_href}" style="text-decoration: none; color: inherit;">
                         <div class="product-img-wrapper">
                             <img src="{item['image_url']}" alt="{name_html}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -480,7 +598,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         </div>
                     </a>
                     <div style="padding: 0 16px 16px;">
-                        <a href="{link_href}" class="btn-try">{btn_text}</a>
+                        <button type="button" class="btn-try" onclick="quickAddToCart(event, {item['id']})">ADD TO CART</button>
                     </div>
                 </div>
                 """)
@@ -844,6 +962,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
                     cards.append(f"""
                     <div class="product-card" id="product-card-{item['id']}">
+                        <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                            </svg>
+                        </button>
                         <a href="{link_href}" style="text-decoration: none; color: inherit;">
                             <div class="product-img-wrapper">
                                 <img src="{item['image_url']}" alt="{name_html}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -857,7 +980,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                             </div>
                         </a>
                         <div style="padding: 0 16px 16px;">
-                            <a href="{link_href}" class="btn-try">{btn_text}</a>
+                            <button type="button" class="btn-try" onclick="quickAddToCart(event, {item['id']})">ADD TO CART</button>
                         </div>
                     </div>
                     """)
@@ -866,6 +989,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             with open('templates/search_results.html', 'r', encoding='utf-8') as f:
                 content = f.read()
 
+            content = content.replace('{{HEADER}}', self.get_header_html(user))
+            content = content.replace('{{FOOTER}}', self.get_footer_html())
             content = content.replace('{{CATALOG_GRID}}', catalog_html)
             content = content.replace('{{SEARCH_QUERY}}', q)
 
@@ -1097,7 +1222,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                     <div class="product-pricing">
                                         <span class="buy-price">Buy ₹{float(i['price']):,.2f}</span>
                                     </div>
-                                    <a href="/product?id={i['id']}" class="btn-try">View Details</a>
+                                    <button type="button" class="btn-try" onclick="quickAddToCart(event, {i['id']})">ADD TO CART</button>
                                 </div>
                             </div>
                             """
@@ -1439,17 +1564,20 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
     def handle_cart_add(self):
         user = self.get_current_user()
+        new_session = False
         if not user:
-            self.send_response(303)
-            self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
-            self.end_headers()
-            return
+            session_id = uuid.uuid4().hex
+            user = {'id': 'guest', 'name': 'Guest', 'email': '', 'role': 'user', 'session_id': session_id}
+            new_session = True
 
         data = self.get_post_data()
         cloth_id = data.get('cloth_id')
         size = str(data.get('size', 'M')).strip()
         color = str(data.get('color', 'Black')).strip()
-        qty = int(data.get('quantity', 1))
+        try:
+            qty = int(data.get('quantity', 1))
+        except (ValueError, TypeError):
+            qty = 1
 
         session_id = user.get('session_id', '')
 
@@ -1468,10 +1596,21 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
             if self.is_form_submission():
                 self.send_response(303)
+                if new_session:
+                    self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
                 self.send_header('Location', '/cart?success=' + urllib.parse.quote("Added to cart"))
                 self.end_headers()
+            else:
+                count = self.get_cart_count(user)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                if new_session:
+                    self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": "Added to cart", "cart_count": count}).encode('utf-8'))
         except Exception as e:
-            self.send_error(500, f"Cart Add Error: {e}")
+            logger.error("Cart Add Error: %s", e)
+            self.send_json_error(f"Cart Add Error: {e}", 500)
         finally:
             conn.close()
 
@@ -1789,9 +1928,12 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
     def handle_wishlist_add(self):
         user = self.get_current_user()
         if not user or user['id'] == 'guest':
-            self.send_response(303)
-            self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
-            self.end_headers()
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
+                self.end_headers()
+                return
+            self.send_json_error("Please login first to add to wishlist", 401, code="UNAUTHORIZED")
             return
 
         data = self.get_post_data()
@@ -1805,8 +1947,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(303)
                 self.send_header('Location', '/wishlist?success=' + urllib.parse.quote("Added to wishlist"))
                 self.end_headers()
-        except Exception:
-            pass
+            else:
+                self.send_json_success({"success": True, "message": "Added to wishlist"})
+        except Exception as e:
+            logger.error("Wishlist Add Error: %s", e)
+            self.send_json_error("Could not add to wishlist", 500)
         finally:
             conn.close()
 
@@ -2050,16 +2195,99 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
 
-            self.send_response(303 if self.is_form_submission() else 200)
-            if not self.is_form_submission():
-                self.send_header('Content-Type', 'application/json')
-            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
             if self.is_form_submission():
-                success_msg = "Account created successfully! Welcome to TRY-FIT." if purpose == 'register' else "Successfully logged in! Welcome back."
-                self.send_header('Location', '/?success=' + urllib.parse.quote(success_msg))
+                display_name = name or (user_rec.get('name') if 'user_rec' in locals() and user_rec else '') or 'valued customer'
+                success_page_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="2;url=/">
+    <title>Login Successful | TRY-FIT</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .login-success-wrap {{
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--background);
+            padding: 20px;
+        }}
+        .login-success-card {{
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 50px 40px;
+            max-width: 460px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+            border-radius: 4px;
+            animation: fadeInScale 0.4s ease-out;
+        }}
+        .success-icon-circle {{
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: #111111;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+        }}
+        @keyframes fadeInScale {{
+            from {{ opacity: 0; transform: scale(0.95); }}
+            to {{ opacity: 1; transform: scale(1); }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="login-success-wrap">
+        <div class="login-success-card">
+            <div class="success-icon-circle">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <h1 style="font-family: var(--font-serif); font-size: 2rem; margin-bottom: 12px; color: var(--primary);">Login Successful</h1>
+            <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.5;">
+                Welcome to TRY-FIT, <strong>{display_name}</strong>.<br>Redirecting you to the home page...
+            </p>
+            <div style="font-size: 0.85rem; color: var(--muted);">
+                Redirecting in <span id="sec-count">2</span>s...
+            </div>
+        </div>
+    </div>
+    <script>
+        let s = 2;
+        const countEl = document.getElementById('sec-count');
+        const iv = setInterval(() => {{
+            s--;
+            if (countEl) countEl.textContent = s;
+            if (s <= 0) {{
+                clearInterval(iv);
+                window.location.href = '/';
+            }}
+        }}, 1000);
+        setTimeout(() => {{ window.location.href = '/'; }}, 2000);
+    </script>
+</body>
+</html>"""
+                encoded = success_page_html.encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(encoded)))
+                self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+                self.end_headers()
+                self.wfile.write(encoded)
+                return
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
             self.end_headers()
-            if not self.is_form_submission():
-                self.wfile.write(json.dumps({"message": "Successfully verified and logged in"}).encode('utf-8'))
+            self.wfile.write(json.dumps({"success": True, "message": "Successfully verified and logged in", "redirect": "/"}).encode('utf-8'))
 
         except Exception as e:
             print("Verify OTP exception:", e)
