@@ -2050,6 +2050,7 @@ body.page-fade-out {
     animation: cardShimmerGlow 0.85s ease-out forwards;
 }
 
+
 @media (max-width: 768px) {
     .catalog-sort-bar {
         flex-direction: column;
