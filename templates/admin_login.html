@@ -9,10 +9,13 @@
 <body style="display: flex; flex-direction: column; min-height: 100vh; background: var(--white);">
 
     <div style="padding: 20px 30px 0 30px;">
-        <button type="button" class="nav-back-btn" onclick="window.history.back()" aria-label="Go back">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-
-        </button>
+        <a href="/" class="nav-back-btn" title="Go Back" aria-label="Back">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Back</span>
+        </a>
     </div>
     <main class="container" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px 20px 40px;">
         <div class="auth-container" style="margin: 0; width: 100%; max-width: 460px; padding: 60px 50px;">
