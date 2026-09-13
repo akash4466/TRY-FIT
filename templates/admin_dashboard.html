@@ -10,7 +10,14 @@
 
     <!-- Sidebar -->
     <aside style="width: 280px; background: var(--white); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 40px 30px;">
-        <div style="margin-bottom: 60px;">
+        <div style="margin-bottom: 40px;">
+            <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Back" style="margin-bottom: 16px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Back</span>
+            </button>
             <a href="/" class="logo" style="font-size: 1.8rem; display: block; margin-bottom: 4px;">TRY-FIT</a>
             <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--muted);">Admin Portal</span>
         </div>
