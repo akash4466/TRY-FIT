@@ -810,8 +810,12 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error rendering OTP verify page: {e}")
 
-    def serve_book_trial(self, cloth_id, user):
+    def serve_book_trial(self, cloth_id, size='M', user=None):
         try:
+            if isinstance(size, dict) and user is None:
+                user = size
+                size = 'M'
+
             conn = db.get_connection()
             with conn.cursor() as cursor:
                 cursor.execute("SELECT * FROM clothes WHERE id = %s", (cloth_id,))
@@ -827,6 +831,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
             price_int = int(float(cloth['price']))
             trial_int = int(float(cloth['trial_price']))
+            selected_size = str(size).strip() if size else 'M'
 
             content = content.replace('{{CLOTH_ID}}', str(cloth['id']))
             content = content.replace('{{CLOTH_NAME}}', cloth['name'])
@@ -835,6 +840,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             content = content.replace('{{CLOTH_PRICE}}', f"{price_int:,}")
             content = content.replace('{{TRIAL_PRICE}}', str(trial_int))
             content = content.replace('{{USER_NAME}}', user['name'] if user and 'name' in user else '')
+            content = content.replace('{{SELECTED_SIZE}}', selected_size)
 
             encoded_content = content.encode('utf-8')
             self.send_response(200)

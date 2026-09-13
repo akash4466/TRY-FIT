@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `razorpay_order_id` VARCHAR(255) NULL,
     `razorpay_payment_id` VARCHAR(255) NULL,
     `razorpay_signature` VARCHAR(255) NULL,
-    `payment_status` ENUM('created','paid','failed') DEFAULT 'created',
+    `payment_status` ENUM('created', 'pending', 'paid', 'failed', 'captured') DEFAULT 'created',
     `payment_verified_at` DATETIME NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX `idx_orders_user_id` (`user_id`),

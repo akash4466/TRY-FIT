@@ -8,15 +8,18 @@ import config
 
 
 def get_connection():
-    return pymysql.connect(
-        host=config.DB_HOST,
-        port=config.DB_PORT,
-        user=config.DB_USER,
-        password=config.DB_PASSWORD,
-        database=config.DB_NAME,
-        cursorclass=pymysql.cursors.DictCursor,
-        ssl={"ssl": {}}
-    )
+    conn_params = {
+        "host": config.DB_HOST,
+        "port": config.DB_PORT,
+        "user": config.DB_USER,
+        "password": config.DB_PASSWORD,
+        "database": config.DB_NAME,
+        "cursorclass": pymysql.cursors.DictCursor,
+    }
+    if getattr(config, 'DB_SSL', False):
+        conn_params["ssl"] = {"ssl": {}}
+
+    return pymysql.connect(**conn_params)
 
 
 def seed_clothes(cursor):
@@ -557,6 +560,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS orders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
+                customer_name VARCHAR(100) NULL,
                 total_amount DECIMAL(10, 2) NOT NULL,
                 discount_amount DECIMAL(10, 2) DEFAULT 0,
                 trial_charges DECIMAL(10, 2) DEFAULT 0,
@@ -568,9 +572,10 @@ def init_db():
                 razorpay_order_id VARCHAR(255) NULL,
                 razorpay_payment_id VARCHAR(255) NULL,
                 razorpay_signature VARCHAR(255) NULL,
-                payment_status ENUM('created','paid','failed') DEFAULT 'created',
+                payment_status ENUM('created', 'pending', 'paid', 'failed', 'captured') DEFAULT 'created',
                 payment_verified_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_orders_user_id (user_id),
                 FOREIGN KEY (user_id)
                     REFERENCES users(id)
                     ON DELETE CASCADE
@@ -584,13 +589,18 @@ def init_db():
             ("razorpay_order_id", "VARCHAR(255) NULL"),
             ("razorpay_payment_id", "VARCHAR(255) NULL"),
             ("razorpay_signature", "VARCHAR(255) NULL"),
-            ("payment_status", "ENUM('created','paid','failed') DEFAULT 'created'"),
+            ("payment_status", "ENUM('created', 'pending', 'paid', 'failed', 'captured') DEFAULT 'created'"),
             ("payment_verified_at", "DATETIME NULL")
         ]
         for col_name, col_type in migration_columns:
             cursor.execute(f"SHOW COLUMNS FROM orders LIKE '{col_name}'")
-            if not cursor.fetchone():
+            col_info = cursor.fetchone()
+            if not col_info:
                 cursor.execute(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}")
+            elif col_name == "payment_status":
+                col_type_str = str(col_info.get("Type", "")).lower()
+                if "pending" not in col_type_str or "captured" not in col_type_str:
+                    cursor.execute(f"ALTER TABLE orders MODIFY COLUMN {col_name} {col_type}")
 
         # Migration: Ensure index on orders(user_id) exists
         cursor.execute("SHOW INDEX FROM orders WHERE Column_name = 'user_id'")

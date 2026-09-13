@@ -6,12 +6,15 @@ load_dotenv()
 # Application mode & security
 DEBUG = os.environ.get('DEBUG', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
-_secret_key = os.environ.get('SECRET_KEY')
+_secret_key = os.environ.get('SECRET_KEY', '').strip()
 if not DEBUG and not _secret_key:
     raise RuntimeError('SECRET_KEY environment variable is required in production')
 SECRET_KEY = _secret_key or 'tryfit_dev_fallback_secret_key_insecure'
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+_admin_password = os.environ.get("ADMIN_PASSWORD", "").strip()
+if not DEBUG and not _admin_password:
+    raise RuntimeError('ADMIN_PASSWORD environment variable is required in production')
+ADMIN_PASSWORD = _admin_password
 
 # Database configurations
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
@@ -19,6 +22,7 @@ DB_PORT = int(os.environ.get('DB_PORT', 3306))
 DB_USER = os.environ.get('DB_USER', 'root')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
 DB_NAME = os.environ.get('DB_NAME', 'try-fit')
+DB_SSL = os.environ.get('DB_SSL', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
 # Web Server configurations
 PORT = int(os.environ.get('PORT', 8000))
