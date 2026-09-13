@@ -154,17 +154,26 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         back_btn_html = ""
         if show_back_btn:
-            back_btn_html = """
-                    <button type="button" class="nav-back-btn" onclick="if(document.referrer && new URL(document.referrer).origin === location.origin){ window.location.href = document.referrer; } else if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Go Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; margin-right: 12px; color: #111111; text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; user-select: none; box-sizing: border-box; vertical-align: middle; -webkit-appearance: none; appearance: none;">
-                        <span class="nav-back-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF; flex-shrink: 0; transition: all 0.22s ease;">
-                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px; stroke: currentColor; stroke-width: 2.6; fill: none; transition: transform 0.22s ease;">
-                                <line x1="19" y1="12" x2="5" y2="12"></line>
-                                <polyline points="12 19 5 12 12 5"></polyline>
-                            </svg>
-                        </span>
-                        <span class="nav-back-text" style="line-height: 1; display: inline-block;">Back</span>
-                    </button>
-            """
+            # Determine safe back URL using Referer header (internal TRY-FIT only)
+            back_url = "/"
+            referer = self.headers.get("Referer")
+            host = self.headers.get("Host")
+            if referer and host:
+                try:
+                    parsed = urllib.parse.urlparse(referer)
+                    if parsed.scheme in ("http", "https") and parsed.netloc == host:
+                        back_url = parsed.path or "/"
+                except Exception:
+                    pass
+            back_btn_html = f'''<a href="{back_url}" class="nav-back-btn" title="Go Back" aria-label="Go Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; margin-right: 12px; color: #111111; text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; user-select: none; box-sizing: border-box; vertical-align: middle; -webkit-appearance: none; appearance: none;">
+                <span class="nav-back-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF; flex-shrink: 0; transition: all 0.22s ease;">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px; stroke: currentColor; stroke-width: 2.6; fill: none; transition: transform 0.22s ease;">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </span>
+                <span class="nav-back-text" style="line-height: 1; display: inline-block;">Back</span>
+            </a>'''
 
         return f"""
         <style>
@@ -238,10 +247,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             .nav-back-btn:active {{
                 transform: translateX(-1px) scale(0.96) !important;
             }}
-            .page-home:not(.has-history) .nav-back-btn,
-            body[data-page="home"]:not(.has-history) .nav-back-btn {{
-                display: none !important;
-            }}
+
         </style>
         <header class="main-header">
             <div class="container nav-wrapper">
@@ -369,31 +375,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     observer.observe(el);
                 });
 
-                // Show back button on home page ONLY if navigated from a link within site
-                const isHome = (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index' || window.location.pathname === '/index.html');
-                if (isHome) {
-                    if (document.referrer && document.referrer.indexOf(window.location.host) !== -1 && window.history.length > 1) {
-                        document.body.classList.add('has-history');
-                    } else {
-                        document.querySelectorAll('.nav-back-btn').forEach(btn => {
-                            btn.style.display = 'none';
-                        });
-                    }
-                }
-
-                // Global click handler for all back buttons (redirects back without page refresh)
-                document.addEventListener('click', function(e) {
-                    const btn = e.target.closest('.nav-back-btn');
-                    if (btn) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (window.history.length > 1) {
-                            window.history.back();
-                        } else {
-                            window.location.href = '/';
-                        }
-                    }
-                });
+                // Back button logic moved server-side; JS removed
 
                 // ==========================================================
                 // 3D CARD SHUFFLE SORTING ENGINE

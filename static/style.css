@@ -283,13 +283,7 @@ img {
     outline-offset: 2px !important;
 }
 
-/* Hide back button on initial home page visit unless user navigated here from a link */
-.page-home:not(.has-history) .nav-back-btn,
-.page-home:not(.has-history) .back-button,
-body[data-page="home"]:not(.has-history) .nav-back-btn,
-body[data-page="home"]:not(.has-history) .back-button {
-    display: none !important;
-}
+
 
 .nav-center {
     display: flex;
