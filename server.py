@@ -127,7 +127,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         finally:
             conn.close()
 
-    def get_header_html(self, user):
+    def get_header_html(self, user, show_back_btn=True):
         cart_count = self.get_cart_count(user)
 
         if user and user['id'] != 'guest':
@@ -152,14 +152,20 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     </a>
             """
 
+        back_btn_html = ""
+        if show_back_btn:
+            back_btn_html = """
+                    <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Go Back">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <span>Back</span>
+                    </button>
+            """
+
         return f"""
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
-                    <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){{ window.history.back(); }} else {{ window.location.href='/'; }}" title="Go Back" aria-label="Go Back">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                        <span>Back</span>
-                    </button>
+                    {back_btn_html}
                     <nav class="nav-menu">
                         <a href="/category?category=all" class="nav-menu-link">All</a>
                         <a href="/category?category=men" class="nav-menu-link">Men</a>
@@ -281,6 +287,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 document.querySelectorAll('.scroll-anim').forEach(el => {
                     observer.observe(el);
                 });
+
+                // Never display back button on home page
+                if (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index' || window.location.pathname === '/index.html') {
+                    document.querySelectorAll('.nav-back-btn').forEach(btn => {
+                        btn.style.display = 'none';
+                    });
+                }
             });
 
             // Reusable AJAX Cart & Wishlist functions (no page refresh)
@@ -386,13 +399,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         </script>
         """
 
-    def render_template(self, filepath, user=None, **kwargs):
+    def render_template(self, filepath, user=None, show_back_btn=None, **kwargs):
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
 
+            if show_back_btn is None:
+                # Do NOT show back button on Home Page (index.html); show on all other pages
+                show_back_btn = ('index.html' not in filepath)
+
             # Inject Global Header and Footer
-            content = content.replace('{{HEADER}}', self.get_header_html(user))
+            content = content.replace('{{HEADER}}', self.get_header_html(user, show_back_btn=show_back_btn))
             content = content.replace('{{FOOTER}}', self.get_footer_html())
 
             for k, v in kwargs.items():
