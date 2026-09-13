@@ -156,7 +156,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         if show_back_btn:
             back_btn_html = """
                     <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Go Back">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                         <span>Back</span>
                     </button>
             """
@@ -288,12 +288,31 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     observer.observe(el);
                 });
 
-                // Never display back button on home page
-                if (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index' || window.location.pathname === '/index.html') {
-                    document.querySelectorAll('.nav-back-btn').forEach(btn => {
-                        btn.style.display = 'none';
-                    });
+                // Show back button on home page ONLY if navigated from a link within site
+                const isHome = (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index' || window.location.pathname === '/index.html');
+                if (isHome) {
+                    if (document.referrer && document.referrer.indexOf(window.location.host) !== -1 && window.history.length > 1) {
+                        document.body.classList.add('has-history');
+                    } else {
+                        document.querySelectorAll('.nav-back-btn').forEach(btn => {
+                            btn.style.display = 'none';
+                        });
+                    }
                 }
+
+                // Global click handler for all back buttons (redirects back without page refresh)
+                document.addEventListener('click', function(e) {
+                    const btn = e.target.closest('.nav-back-btn');
+                    if (btn) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        } else {
+                            window.location.href = '/';
+                        }
+                    }
+                });
             });
 
             // Reusable AJAX Cart & Wishlist functions (no page refresh)
@@ -405,8 +424,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 content = f.read()
 
             if show_back_btn is None:
-                # Do NOT show back button on Home Page (index.html); show on all other pages
-                show_back_btn = ('index.html' not in filepath)
+                # Show back button on all pages (on home page it dynamically shows when navigated from within site)
+                show_back_btn = True
 
             # Inject Global Header and Footer
             content = content.replace('{{HEADER}}', self.get_header_html(user, show_back_btn=show_back_btn))
@@ -1400,7 +1419,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.serve_dashboard(user, query_params)
             return
 
-        elif path == '/admin':
+        elif path == '/admin' or path == '/admin/':
             self.send_response(303)
             self.send_header('Location', '/admin/dashboard')
             self.end_headers()
@@ -1532,6 +1551,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         elif path.startswith('/admin/') and path not in ('/admin/login', '/admin/dashboard', '/admin/api/login', '/admin/api/seed'):
             user = self.get_current_user()
+            if not user or user.get('role') != 'admin':
+                self.send_response(303)
+                self.send_header('Location', '/admin/login')
+                self.end_headers()
+                return
             title = path.replace('/admin/', '').replace('_', ' ').title()
             try:
                 content = self.render_template('templates/admin_stub.html', user, TITLE=title)
@@ -1582,6 +1606,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.handle_wishlist_add()
         elif path == '/api/wishlist/remove' or path == '/wishlist/remove':
             self.handle_wishlist_remove()
+        elif path.startswith('/admin/') or (path.startswith('/api/admin/') and path not in ('/api/admin/login', '/admin-login')):
+            user = self.get_current_user()
+            if not user or user.get('role') != 'admin':
+                if self.is_form_submission():
+                    self.send_response(303)
+                    self.send_header('Location', '/admin/login')
+                    self.end_headers()
+                else:
+                    self.send_json_error("Unauthorized: Admin access required", 401)
+                return
+            self.send_json_error("Endpoint not found", 404)
         else:
             self.send_json_error("Endpoint not found", 404)
 
@@ -1638,38 +1673,81 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
 
     def handle_cart_update(self):
+        user = self.get_current_user()
+        session_id = user.get('session_id', '') if user else ''
+        if not session_id:
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/cart')
+                self.end_headers()
+                return
+            self.send_json_error("Session not found", 401)
+            return
+
         data = self.get_post_data()
         cart_id = data.get('cart_id')
-        qty = int(data.get('quantity', 1))
+        try:
+            qty = int(data.get('quantity', 1))
+        except (ValueError, TypeError):
+            qty = 1
 
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("UPDATE cart SET quantity = %s WHERE id = %s", (qty, cart_id))
+                cursor.execute("UPDATE cart SET quantity = %s WHERE id = %s AND session_id = %s", (qty, cart_id, session_id))
                 conn.commit()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/cart')
                 self.end_headers()
+            else:
+                count = self.get_cart_count(user)
+                self.send_json_success({"success": True, "message": "Cart updated", "cart_count": count})
         except Exception as e:
-            pass
+            logger.error("Cart Update Error: %s", e)
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/cart')
+                self.end_headers()
+            else:
+                self.send_json_error(f"Cart Update Error: {e}", 500)
         finally:
             conn.close()
 
     def handle_cart_remove(self):
+        user = self.get_current_user()
+        session_id = user.get('session_id', '') if user else ''
+        if not session_id:
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/cart')
+                self.end_headers()
+                return
+            self.send_json_error("Session not found", 401)
+            return
+
         data = self.get_post_data()
         cart_id = data.get('cart_id')
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM cart WHERE id = %s", (cart_id,))
+                cursor.execute("DELETE FROM cart WHERE id = %s AND session_id = %s", (cart_id, session_id))
                 conn.commit()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/cart?success=' + urllib.parse.quote("Item removed"))
                 self.end_headers()
-        except Exception:
-            pass
+            else:
+                count = self.get_cart_count(user)
+                self.send_json_success({"success": True, "message": "Item removed", "cart_count": count})
+        except Exception as e:
+            logger.error("Cart Remove Error: %s", e)
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/cart?error=' + urllib.parse.quote("Error removing item"))
+                self.end_headers()
+            else:
+                self.send_json_error(f"Cart Remove Error: {e}", 500)
         finally:
             conn.close()
 
@@ -1979,19 +2057,37 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
 
     def handle_wishlist_remove(self):
+        user = self.get_current_user()
+        if not user or user['id'] == 'guest':
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
+                self.end_headers()
+                return
+            self.send_json_error("Please login first", 401, code="UNAUTHORIZED")
+            return
+
         data = self.get_post_data()
         wish_id = data.get('wish_id')
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM wishlist WHERE id = %s", (wish_id,))
+                cursor.execute("DELETE FROM wishlist WHERE id = %s AND user_id = %s", (wish_id, user['id']))
                 conn.commit()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/wishlist?success=' + urllib.parse.quote("Removed from wishlist"))
                 self.end_headers()
-        except Exception:
-            pass
+            else:
+                self.send_json_success({"success": True, "message": "Removed from wishlist"})
+        except Exception as e:
+            logger.error("Wishlist Remove Error: %s", e)
+            if self.is_form_submission():
+                self.send_response(303)
+                self.send_header('Location', '/wishlist?error=' + urllib.parse.quote("Could not remove item"))
+                self.end_headers()
+            else:
+                self.send_json_error("Could not remove item from wishlist", 500)
         finally:
             conn.close()
 
