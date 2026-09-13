@@ -239,13 +239,15 @@ img {
     transition: transform var(--transition-fast);
 }
 
-.nav-back-btn:hover svg {
+.back-button:hover svg {
     transform: translateX(-2px);
 }
 
 /* Hide back button on Home Page */
 .page-home .nav-back-btn,
-body[data-page="home"] .nav-back-btn {
+.page-home .back-button,
+body[data-page="home"] .nav-back-btn,
+body[data-page="home"] .back-button {
     display: none !important;
 }
 
