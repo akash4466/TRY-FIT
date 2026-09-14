@@ -39,6 +39,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Set-Cookie', cookie_header)
 
 
+    def get_hero_videos(self):
+        """Return a list of video URLs from static/images/video/ supporting common formats."""
+        video_dir = os.path.join('static', 'images', 'video')
+        supported = ('.mp4', '.webm', '.ogg')
+        videos = []
+        if os.path.isdir(video_dir):
+            for fname in sorted(os.listdir(video_dir)):
+                if fname.lower().endswith(supported):
+                    videos.append('/' + os.path.join(video_dir, fname).replace('\\', '/'))
+        return videos
+
     def get_post_data(self):
         content_length = int(self.headers.get('Content-Length', 0))
         if content_length == 0:
@@ -111,6 +122,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             return None
         finally:
             conn.close()
+
+    def get_hero_videos(self):
+        """Return a list of video URLs from static/images/video/ supporting common formats."""
+        video_dir = os.path.join('static', 'images', 'video')
+        supported = ('.mp4', '.webp', '.ogg')
+        videos = []
+        if os.path.isdir(video_dir):
+            for fname in sorted(os.listdir(video_dir)):
+                if fname.lower().endswith(supported):
+                    videos.append('/' + os.path.join(video_dir, fname).replace('\\', '/'))
+        return videos
 
     def serve_file(self, filepath, content_type):
         try:
@@ -903,6 +925,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         try:
             user = self.get_current_user()
             content = self.render_template('templates/index.html', user)
+        # Inject hero video playlist JSON
+        videos = self.get_hero_videos()
+        import json as _json
+        content = content.replace('{{HERO_VIDEOS_JSON}}', _json.dumps(videos))
 
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
             is_guest = (not user or user['id'] == 'guest')
@@ -1549,22 +1575,55 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error(404, "Asset not found")
                 return
 
+            # Determine content type
             if path.endswith('.css'):
-                self.serve_file(filepath, 'text/css')
+                content_type = 'text/css'
+            elif path.endswith('.js'):
+                content_type = 'application/javascript'
+            elif path.endswith('.mp4'):
+                content_type = 'video/mp4'
+            elif path.endswith('.webm'):
+                content_type = 'video/webm'
+            elif path.endswith('.ogg'):
+                content_type = 'video/ogg'
             elif path.endswith('.jpg') or path.endswith('.jpeg'):
-                self.serve_file(filepath, 'image/jpeg')
+                content_type = 'image/jpeg'
             elif path.endswith('.png'):
-                self.serve_file(filepath, 'image/png')
+                content_type = 'image/png'
             elif path.endswith('.webp'):
-                self.serve_file(filepath, 'image/webp')
+                content_type = 'image/webp'
             elif path.endswith('.gif'):
-                self.serve_file(filepath, 'image/gif')
+                content_type = 'image/gif'
             elif path.endswith('.svg'):
-                self.serve_file(filepath, 'image/svg+xml')
+                content_type = 'image/svg+xml'
             elif path.endswith('.ico'):
-                self.serve_file(filepath, 'image/x-icon')
+                content_type = 'image/x-icon'
             else:
-                self.serve_file(filepath, 'application/octet-stream')
+                content_type = 'application/octet-stream'
+
+            # Range handling for video files
+            if content_type.startswith('video/') and 'Range' in self.headers:
+                range_header = self.headers['Range']
+                try:
+                    bytes_range = range_header.replace('bytes=', '').split('-')
+                    start = int(bytes_range[0]) if bytes_range[0] else 0
+                    end = int(bytes_range[1]) if bytes_range[1] else os.path.getsize(filepath) - 1
+                    length = end - start + 1
+                    with open(filepath, 'rb') as f:
+                        f.seek(start)
+                        data = f.read(length)
+                    self.send_response(206)
+                    self.send_header('Content-Type', content_type)
+                    self.send_header('Content-Range', f'bytes {start}-{end}/{os.path.getsize(filepath)}')
+                    self.send_header('Content-Length', str(length))
+                    self.send_header('Accept-Ranges', 'bytes')
+                    self.end_headers()
+                    self.wfile.write(data)
+                except Exception as e:
+                    logger.warning('Range request failed: %s', e)
+                    self.serve_file(filepath, content_type)
+            else:
+                self.serve_file(filepath, content_type)
             return
 
         # Core routes
