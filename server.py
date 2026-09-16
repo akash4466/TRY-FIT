@@ -832,11 +832,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             user = self.get_current_user()
             content = self.render_template('templates/index.html', user)
 
-            # Inject hero video playlist JSON
-            videos = self.get_hero_videos()
-            import json as _json
-            content = content.replace('{{HERO_VIDEOS_JSON}}', _json.dumps(videos))
-
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
             is_guest = (not user or user['id'] == 'guest')
             content = self.replace_category_placeholders(
