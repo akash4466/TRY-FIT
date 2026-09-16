@@ -9,46 +9,224 @@ import random
 import datetime
 import uuid
 import http.cookies
-import logging
+import re
+import html
 
 import db
 import sms
+import config
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+razorpay_client = razorpay.Client(
+    auth=(config.RAZORPAY_KEY_ID, 
+    config.RAZORPAY_KEY_SECRET)
 )
-logger = logging.getLogger("tryfit")
 
+# -------------------------------------------------------------
+# ATTRIBUTE-AWARE SEARCH ENGINE
+# -------------------------------------------------------------
+SEARCH_COLORS = {
+    'blue': ['Blue', 'Navy'],
+    'navy': ['Navy', 'Blue'],
+    'black': ['Black'],
+    'white': ['White'],
+    'grey': ['Grey', 'Gray'],
+    'gray': ['Grey', 'Gray'],
+    'beige': ['Beige'],
+    'brown': ['Brown', 'Tan', 'Chocolate'],
+    'tan': ['Tan', 'Brown', 'Camel'],
+    'camel': ['Tan', 'Camel', 'Brown'],
+    'chocolate': ['Chocolate', 'Brown'],
+    'red': ['Red', 'Maroon'],
+    'maroon': ['Maroon', 'Red'],
+    'green': ['Green', 'Olive', 'Emerald'],
+    'olive': ['Olive', 'Green'],
+    'emerald': ['Emerald', 'Green'],
+    'yellow': ['Yellow', 'Gold'],
+    'pink': ['Pink'],
+    'gold': ['Gold'],
+    'silver': ['Silver'],
+    'indigo': ['Indigo', 'Blue'],
+    'khaki': ['Khaki', 'Olive', 'Beige'],
+}
+
+SEARCH_CATEGORIES = {
+    'shirt': ['Shirts', 'Shirt'],
+    'shirts': ['Shirts', 'Shirt'],
+    'suit': ['Suits', 'Suit', 'Tuxedo', 'Blazer'],
+    'suits': ['Suits', 'Suit', 'Tuxedo', 'Blazer'],
+    'tuxedo': ['Tuxedo'],
+    'tuxedos': ['Tuxedo'],
+    'blazer': ['Blazer'],
+    'blazers': ['Blazer'],
+    'jacket': ['Jackets', 'Jacket'],
+    'jackets': ['Jackets', 'Jacket'],
+    'hoodie': ['Hoodies', 'Hoodie'],
+    'hoodies': ['Hoodies', 'Hoodie'],
+    'jean': ['Jeans', 'Jean', 'Denim'],
+    'jeans': ['Jeans', 'Jean', 'Denim'],
+    'denim': ['Denim', 'Jeans'],
+    'trouser': ['Trousers', 'Trouser'],
+    'trousers': ['Trousers', 'Trouser'],
+    'chino': ['Chino', 'Trousers'],
+    'chinos': ['Chino', 'Trousers'],
+    'shoe': ['Shoes', 'Shoe', 'Footwear', 'Sneakers', 'Loafers', 'Boots'],
+    'shoes': ['Shoes', 'Shoe', 'Footwear', 'Sneakers', 'Loafers', 'Boots'],
+    'footwear': ['Footwear', 'Shoes', 'Boots'],
+    'boot': ['Boots', 'Boot'],
+    'boots': ['Boots', 'Boot'],
+    'sneaker': ['Sneakers', 'Sneaker'],
+    'sneakers': ['Sneakers', 'Sneaker'],
+    'loafer': ['Loafers', 'Loafer'],
+    'loafers': ['Loafers', 'Loafer'],
+    'brogue': ['Brogues', 'Brogue'],
+    'brogues': ['Brogues', 'Brogue'],
+    'dress': ['Dresses', 'Dress'],
+    'dresses': ['Dresses', 'Dress'],
+    'saree': ['Saree', 'Sari'],
+    'sarees': ['Saree', 'Sari'],
+    'sari': ['Saree', 'Sari'],
+    'gown': ['Gown', 'Gowns'],
+    'gowns': ['Gown', 'Gowns'],
+    'kurti': ['Kurti', 'Kurtis'],
+    'kurtis': ['Kurti', 'Kurtis'],
+    'top': ['Top', 'Tops'],
+    'tops': ['Top', 'Tops'],
+    'blouse': ['Blouse', 'Top'],
+    'palazzo': ['Palazzo'],
+    'palazzos': ['Palazzo'],
+    'skirt': ['Skirt', 'Skirts'],
+    'skirts': ['Skirt', 'Skirts'],
+    'handbag': ['Handbags', 'Handbag'],
+    'handbags': ['Handbags', 'Handbag'],
+    'bag': ['Handbags', 'Bag'],
+    'bags': ['Handbags', 'Bags'],
+}
+
+SEARCH_GENDERS = {
+    'men': 'Men',
+    'mens': "Men",
+    "men's": 'Men',
+    'man': 'Men',
+    'male': 'Men',
+    'women': 'Women',
+    'womens': "Women",
+    "women's": 'Women',
+    'woman': 'Women',
+    'female': 'Women',
+    'ladies': 'Women',
+    'lady': 'Women',
+}
+
+SEARCH_BRANDS = {
+    'armani': 'Armani Exchange',
+    'calvin': 'Calvin Klein',
+    'klein': 'Calvin Klein',
+    'tommy': 'Tommy Hilfiger',
+    'hilfiger': 'Tommy Hilfiger',
+    'polo': 'Polo Ralph Lauren',
+    'ralph': 'Polo Ralph Lauren',
+    'lauren': 'Polo Ralph Lauren',
+    'boss': 'Hugo Boss',
+    'hugo': 'Hugo Boss',
+    'woodland': 'Woodland',
+    'mochi': 'Mochi',
+    'liberty': 'Liberty',
+    'red chief': 'Red Chief',
+    'redchief': 'Red Chief',
+    'field care': 'Field Care',
+    'fieldcare': 'Field Care',
+    'tryfit': 'TRY-FIT',
+    'try-fit': 'TRY-FIT',
+}
+
+SEARCH_STOPWORDS = {'a', 'an', 'the', 'in', 'on', 'for', 'of', 'with', 'and', 'or', 'cloth', 'clothes', 'piece', 'pieces', 'wear', 'item', 'items'}
+
+def build_search_query(q, limit=None):
+    q_clean = re.sub(r'[^\w\s]', ' ', q.strip().lower()) if q else ''
+    tokens = [t for t in q_clean.split() if t and t not in SEARCH_STOPWORDS]
+
+    where_clauses = ["is_available = 1 AND stock > 0"]
+    params = []
+
+    if not tokens:
+        sql = "SELECT * FROM clothes WHERE is_available = 1 AND stock > 0 ORDER BY id ASC"
+        if limit:
+            sql += f" LIMIT {int(limit)}"
+        return sql, ()
+
+    matched_colors = set()
+    matched_categories = set()
+    matched_gender = None
+    matched_brands = set()
+
+    # Multi-word brand checks
+    full_str = " ".join(tokens)
+    for multi_b in ['red chief', 'field care', 'calvin klein', 'tommy hilfiger', 'polo ralph', 'hugo boss', 'armani exchange']:
+        if multi_b in full_str:
+            target_b = SEARCH_BRANDS.get(multi_b, multi_b.title())
+            matched_brands.add(target_b)
+            for w in multi_b.split():
+                if w in tokens:
+                    tokens.remove(w)
+
+    remaining_tokens = []
+    for token in tokens:
+        if token in SEARCH_COLORS:
+            for c in SEARCH_COLORS[token]:
+                matched_colors.add(c)
+        elif token in SEARCH_CATEGORIES:
+            for cat in SEARCH_CATEGORIES[token]:
+                matched_categories.add(cat)
+        elif token in SEARCH_GENDERS:
+            matched_gender = SEARCH_GENDERS[token]
+        elif token in SEARCH_BRANDS:
+            matched_brands.add(SEARCH_BRANDS[token])
+        else:
+            remaining_tokens.append(token)
+
+    # 1. Color filter: Strict attribute matching
+    if matched_colors:
+        color_subclauses = []
+        for c in matched_colors:
+            color_subclauses.append("(available_colors LIKE %s OR name LIKE %s)")
+            params.extend([f"%{c}%", f"%{c}%"])
+        where_clauses.append(f"({' OR '.join(color_subclauses)})")
+
+    # 2. Category / Type filter: Strict category/name matching
+    if matched_categories:
+        cat_subclauses = []
+        for cat in matched_categories:
+            cat_subclauses.append("(category LIKE %s OR name LIKE %s)")
+            params.extend([f"%{cat}%", f"%{cat}%"])
+        where_clauses.append(f"({' OR '.join(cat_subclauses)})")
+
+    # 3. Gender filter
+    if matched_gender:
+        where_clauses.append("(category LIKE %s)")
+        params.append(f"%{matched_gender}%")
+
+    # 4. Brand filter
+    if matched_brands:
+        brand_subclauses = []
+        for b in matched_brands:
+            brand_subclauses.append("(brand LIKE %s)")
+            params.append(f"%{b}%")
+        where_clauses.append(f"({' OR '.join(brand_subclauses)})")
+
+    # 5. Remaining keyword tokens
+    for t in remaining_tokens:
+        where_clauses.append("(name LIKE %s OR category LIKE %s OR description LIKE %s)")
+        params.extend([f"%{t}%", f"%{t}%", f"%{t}%"])
+
+    sql = f"SELECT * FROM clothes WHERE {' AND '.join(where_clauses)} ORDER BY id ASC"
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    return sql, tuple(params)
 
 class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 class TryFitHandler(http.server.BaseHTTPRequestHandler):
-    # Helper to set secure cookies with HttpOnly, Secure (in production), SameSite=Lax
-    def set_secure_cookie(self, name, value, max_age=86400):
-        # Determine if running in production to set Secure flag
-        secure_flag = ''
-        try:
-            from config import IS_PRODUCTION
-            if IS_PRODUCTION:
-                secure_flag = '; Secure'
-        except ImportError:
-            pass
-        cookie_header = f"{name}={value}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure_flag}"
-        self.send_header('Set-Cookie', cookie_header)
-
-
-    def get_hero_videos(self):
-        """Return a list of video URLs from static/images/video/ supporting common formats."""
-        video_dir = os.path.join('static', 'images', 'video')
-        supported = ('.mp4', '.webm', '.ogg')
-        videos = []
-        if os.path.isdir(video_dir):
-            for fname in sorted(os.listdir(video_dir)):
-                if fname.lower().endswith(supported):
-                    videos.append('/' + os.path.join(video_dir, fname).replace('\\', '/'))
-        return videos
 
     def get_post_data(self):
         content_length = int(self.headers.get('Content-Length', 0))
@@ -73,17 +251,11 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
-    def send_json_error(self, message, status=400, code=None):
+    def send_json_error(self, message, status=400):
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
-        resp = {
-            "success": False,
-            "error": message
-        }
-        if code:
-            resp["code"] = code
-        self.wfile.write(json.dumps(resp).encode('utf-8'))
+        self.wfile.write(json.dumps({"error": message}).encode('utf-8'))
 
     def is_form_submission(self):
         content_type = self.headers.get('Content-Type', '')
@@ -123,17 +295,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         finally:
             conn.close()
 
-    def get_hero_videos(self):
-        """Return a list of video URLs from static/images/video/ supporting common formats."""
-        video_dir = os.path.join('static', 'images', 'video')
-        supported = ('.mp4', '.webp', '.ogg')
-        videos = []
-        if os.path.isdir(video_dir):
-            for fname in sorted(os.listdir(video_dir)):
-                if fname.lower().endswith(supported):
-                    videos.append('/' + os.path.join(video_dir, fname).replace('\\', '/'))
-        return videos
-
     def serve_file(self, filepath, content_type):
         try:
             with open(filepath, 'rb') as f:
@@ -141,12 +302,9 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(content)))
-            if filepath.startswith('static/') or filepath.startswith('/static/'):
-                self.send_header('Cache-Control', 'no-cache, must-revalidate')
             self.end_headers()
             self.wfile.write(content)
         except Exception as e:
-            logger.warning("File not found: %s (%s)", filepath, e)
             self.send_error(404, f"File not found: {e}")
 
     def get_cart_count(self, user):
@@ -162,7 +320,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         finally:
             conn.close()
 
-    def get_header_html(self, user, show_back_btn=True):
+    def get_header_html(self, user):
         cart_count = self.get_cart_count(user)
 
         if user and user['id'] != 'guest':
@@ -187,107 +345,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     </a>
             """
 
-        back_btn_html = ""
-        if show_back_btn and self.path != "/":
-            # Determine safe back URL using Referer header (internal TRY-FIT only)
-            back_url = "/"
-            referer = self.headers.get("Referer")
-            host = self.headers.get("Host")
-            if referer and host:
-                try:
-                    parsed = urllib.parse.urlparse(referer)
-                    if parsed.scheme in ("http", "https") and parsed.netloc == host:
-                        back_url = parsed.path or "/"
-                except Exception:
-                    pass
-            back_btn_html = f'''<a href="{back_url}" class="nav-back-btn" title="Go Back" aria-label="Go Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; margin-right: 12px; color: #111111; text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; user-select: none; box-sizing: border-box; vertical-align: middle; -webkit-appearance: none; appearance: none;">
-                <span class="nav-back-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF; flex-shrink: 0; transition: all 0.22s ease;">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px; stroke: currentColor; stroke-width: 2.6; fill: none; transition: transform 0.22s ease;">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                </span>
-                <span class="nav-back-text" style="line-height: 1; display: inline-block;">Back</span>
-            </a>'''
-
         return f"""
-        <style>
-            .nav-back-btn {{
-                all: unset !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                gap: 8px !important;
-                height: 34px !important;
-                padding: 0 14px 0 8px !important;
-                margin-right: 12px !important;
-                color: #111111 !important;
-                text-decoration: none !important;
-                font-size: 11px !important;
-                font-weight: 700 !important;
-                letter-spacing: 1.2px !important;
-                text-transform: uppercase !important;
-                background: #FFFFFF !important;
-                border: 1px solid #E5E2DC !important;
-                border-radius: 9999px !important;
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-                cursor: pointer !important;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
-                transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                flex-shrink: 0 !important;
-                user-select: none !important;
-                box-sizing: border-box !important;
-                vertical-align: middle !important;
-                -webkit-appearance: none !important;
-                appearance: none !important;
-            }}
-            .nav-back-btn * {{
-                box-sizing: border-box !important;
-            }}
-            .nav-back-btn .nav-back-icon {{
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                width: 22px !important;
-                height: 22px !important;
-                border-radius: 50% !important;
-                background: #111111 !important;
-                color: #FFFFFF !important;
-                transition: all 0.22s ease !important;
-                flex-shrink: 0 !important;
-            }}
-            .nav-back-btn .nav-back-icon svg {{
-                width: 12px !important;
-                height: 12px !important;
-                stroke: currentColor !important;
-                stroke-width: 2.6 !important;
-                fill: none !important;
-                transition: transform 0.22s ease !important;
-            }}
-            .nav-back-btn .nav-back-text {{
-                line-height: 1 !important;
-                display: inline-block !important;
-            }}
-            .nav-back-btn:hover {{
-                background: #111111 !important;
-                color: #FFFFFF !important;
-                border-color: #111111 !important;
-                transform: translateX(-3px) !important;
-                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14) !important;
-            }}
-            .nav-back-btn:hover .nav-back-icon {{
-                background: #FFFFFF !important;
-                color: #111111 !important;
-                transform: translateX(-2px) !important;
-            }}
-            .nav-back-btn:active {{
-                transform: translateX(-1px) scale(0.96) !important;
-            }}
-
-        </style>
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
-                    {back_btn_html}
                     <nav class="nav-menu">
                         <a href="/category?category=all" class="nav-menu-link">All</a>
                         <a href="/category?category=men" class="nav-menu-link">Men</a>
@@ -304,11 +365,12 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 </div>
 
                 <div class="nav-right">
-                    <form action="/search" method="GET" class="search-form">
-                        <input type="text" name="q" placeholder="Search cloth..." class="search-input-header">
+                    <form action="/search" method="GET" class="search-form" style="position:relative;">
+                        <input type="text" name="q" placeholder="Search TRY-FIT..." class="search-input-header" style="text-align: center;" autocomplete="off">
                         <button type="submit" class="search-btn" aria-label="Search">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
+                        <div class="search-suggestions-dropdown" style="display:none;"></div>
                     </form>
                     {account_html}
                     <a href="/orders" class="nav-link">
@@ -410,255 +472,109 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     observer.observe(el);
                 });
 
-                // Back button logic moved server-side; JS removed
+                // Live Search Suggestions
+                document.querySelectorAll('.search-form, .search-input-wrapper').forEach(form => {
+                    const input = form.querySelector('input[name="q"]');
+                    const dropdown = form.querySelector('.search-suggestions-dropdown');
+                    if (!input || !dropdown) return;
 
-                // ==========================================================
-                // 3D CARD SHUFFLE SORTING ENGINE
-                // ==========================================================
-                let isShuffling3D = false;
+                    let debounceTimer = null;
+                    let selectedIndex = -1;
 
-                window.shuffleSortCatalog = function(sortMode, targetGrid) {
-                    if (isShuffling3D) return;
+                    input.addEventListener('input', function() {
+                        clearTimeout(debounceTimer);
+                        const query = this.value.trim();
+                        if (query.length < 2) {
+                            dropdown.style.display = 'none';
+                            dropdown.innerHTML = '';
+                            selectedIndex = -1;
+                            return;
+                        }
 
-                    const grid = targetGrid || document.querySelector('.products-grid');
-                    if (!grid) return;
+                        debounceTimer = setTimeout(async () => {
+                            try {
+                                const res = await fetch('/api/search/suggestions?q=' + encodeURIComponent(query));
+                                if (!res.ok) return;
+                                const items = await res.json();
+                                selectedIndex = -1;
 
-                    const cards = Array.from(grid.querySelectorAll('.product-card'));
-                    if (cards.length < 2) return;
+                                if (!items || items.length === 0) {
+                                    dropdown.innerHTML = '<div class="suggestion-empty"><span style="font-size:1.2rem; display:block; margin-bottom:4px;">🔍</span>No outfit is available sorry</div>';
+                                    dropdown.style.display = 'block';
+                                    return;
+                                }
 
-                    isShuffling3D = true;
-                    grid.classList.add('grid-shuffling-3d');
-
-                    // Stage 1: 3D Lift & Scatter Animation
-                    cards.forEach((card, i) => {
-                        const tiltY = (i % 2 === 0 ? 1 : -1) * (15 + (i % 4) * 4);
-                        const tiltX = ((i % 3) - 1) * 8;
-                        const rotZ = (i % 2 === 0 ? 1 : -1) * (3 + (i % 3) * 2);
-                        const liftZ = 75 + (i % 4) * 20;
-                        const shiftX = (i % 2 === 0 ? -12 : 12);
-
-                        card.style.willChange = 'transform, opacity, box-shadow';
-                        card.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease, box-shadow 0.4s ease';
-                        card.style.transform = `perspective(1400px) translate3d(${shiftX}px, -15px, ${liftZ}px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) rotateZ(${rotZ}deg) scale(0.91)`;
-                        card.style.boxShadow = '0 30px 60px rgba(0, 0, 0, 0.25), 0 12px 24px rgba(0, 0, 0, 0.12)';
-                        card.style.opacity = '0.78';
-                        card.style.zIndex = `${60 + i}`;
+                                dropdown.innerHTML = items.map((item, idx) => `
+                                    <a href="/product?id=${item.id}" class="suggestion-item" data-index="${idx}">
+                                        <img src="${item.image_url}" alt="${item.name}" class="suggestion-thumb" onerror="this.src='/static/images/placeholder.svg';">
+                                        <div class="suggestion-details">
+                                            <span class="suggestion-title">${item.name}</span>
+                                            <span class="suggestion-meta">${item.category} • ₹${Math.round(item.price).toLocaleString('en-IN')}</span>
+                                            <span class="suggestion-colors">Colors: ${item.available_colors || 'Standard'}</span>
+                                        </div>
+                                    </a>
+                                `).join('') + `
+                                    <div class="suggestion-footer">
+                                        <button type="button" class="btn-all-results" onclick="this.closest('form').submit();">See all results for "${query}"</button>
+                                    </div>
+                                `;
+                                dropdown.style.display = 'block';
+                            } catch (err) {
+                                console.error('Error fetching suggestions:', err);
+                            }
+                        }, 220);
                     });
 
-                    // Stage 2: DOM Re-ordering in 3D at midpoint
-                    setTimeout(() => {
-                        const sorted = [...cards].sort((a, b) => {
-                            const pA = parseFloat(a.dataset.price || a.querySelector('.buy-price')?.textContent?.replace(/[^0-9.]/g, '') || '0');
-                            const pB = parseFloat(b.dataset.price || b.querySelector('.buy-price')?.textContent?.replace(/[^0-9.]/g, '') || '0');
-                            const origA = parseInt(a.dataset.originalOrder !== undefined ? a.dataset.originalOrder : (a.dataset.id || '0'));
-                            const origB = parseInt(b.dataset.originalOrder !== undefined ? b.dataset.originalOrder : (b.dataset.id || '0'));
+                    input.addEventListener('keydown', function(e) {
+                        const items = dropdown.querySelectorAll('.suggestion-item');
+                        if (!items.length || dropdown.style.display === 'none') return;
 
-                            if (sortMode === 'low-to-high') return (pA - pB) || (origA - origB);
-                            if (sortMode === 'high-to-low') return (pB - pA) || (origA - origB);
-                            return origA - origB;
-                        });
-
-                        sorted.forEach((card, i) => {
-                            grid.appendChild(card);
-                            const incomingY = (i % 2 === 0 ? -1 : 1) * 16;
-                            const incomingX = ((i % 3) - 1) * -6;
-                            card.style.transition = 'none';
-                            card.style.transform = `perspective(1400px) translate3d(0, 25px, 80px) rotateX(${incomingX}deg) rotateY(${incomingY}deg) scale(0.92)`;
-                        });
-
-                        // Stage 3: Snap, Settle & 3D Pop
-                        void grid.offsetHeight; // Force reflow
-
-                        requestAnimationFrame(() => {
-                            sorted.forEach((card, i) => {
-                                const delay = i * 35;
-                                card.style.transition = `transform 0.55s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, box-shadow 0.5s ease ${delay}ms, opacity 0.4s ease ${delay}ms`;
-                                card.style.transform = 'perspective(1400px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)';
-                                card.style.boxShadow = '';
-                                card.style.opacity = '1';
-                                card.style.zIndex = '';
-                            });
-
-                            // Cleanup after animation finishes
-                            const totalDuration = 550 + (sorted.length * 35);
-                            setTimeout(() => {
-                                sorted.forEach(card => {
-                                    card.style.transition = '';
-                                    card.style.transform = '';
-                                    card.style.willChange = '';
-                                    card.classList.add('card-3d-shimmer');
-                                    setTimeout(() => card.classList.remove('card-3d-shimmer'), 900);
-                                });
-                                grid.classList.remove('grid-shuffling-3d');
-                                isShuffling3D = false;
-                            }, totalDuration);
-                        });
-                    }, 320);
-
-                    // Sync UI button states & dropdowns
-                    document.querySelectorAll('.sort-3d-btn').forEach(btn => {
-                        btn.classList.toggle('active', btn.dataset.sort === sortMode);
-                    });
-                    document.querySelectorAll('.luxury-sort-dropdown, .category-layout select').forEach(sel => {
-                        if (sel.value !== sortMode) {
-                            sel.value = sortMode;
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            selectedIndex = (selectedIndex + 1) % items.length;
+                            updateSelection(items);
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                            updateSelection(items);
+                        } else if (e.key === 'Enter') {
+                            if (selectedIndex >= 0 && items[selectedIndex]) {
+                                e.preventDefault();
+                                items[selectedIndex].click();
+                            }
+                        } else if (e.key === 'Escape') {
+                            dropdown.style.display = 'none';
                         }
                     });
 
-                    // Toast Feedback
-                    if (sortMode === 'low-to-high') {
-                        showToast('⇅ 3D Shuffled: Price Low to High');
-                    } else if (sortMode === 'high-to-low') {
-                        showToast('⇵ 3D Shuffled: Price High to Low');
-                    } else if (sortMode === 'featured') {
-                        showToast('✨ 3D Shuffled: Featured Collection');
+                    function updateSelection(items) {
+                        items.forEach((item, i) => {
+                            if (i === selectedIndex) {
+                                item.classList.add('active');
+                                item.scrollIntoView({ block: 'nearest' });
+                            } else {
+                                item.classList.remove('active');
+                            }
+                        });
                     }
-                };
 
-                // Click delegation for sort pill buttons
-                document.addEventListener('click', function(e) {
-                    const sortBtn = e.target.closest('.sort-3d-btn');
-                    if (sortBtn && sortBtn.dataset.sort) {
-                        e.preventDefault();
-                        const mode = sortBtn.dataset.sort;
-                        const container = sortBtn.closest('.catalog-sort-bar')?.nextElementSibling?.querySelector('.products-grid') ||
-                                          document.querySelector('.products-grid');
-                        window.shuffleSortCatalog(mode, container);
-                    }
-                });
-
-                // Change event for sort dropdowns
-                document.addEventListener('change', function(e) {
-                    const select = e.target.closest('.luxury-sort-dropdown, .category-layout select');
-                    if (select) {
-                        const val = select.value.toLowerCase();
-                        let mode = 'featured';
-                        if (val.includes('low to high') || val === 'low-to-high') {
-                            mode = 'low-to-high';
-                        } else if (val.includes('high to low') || val === 'high-to-low') {
-                            mode = 'high-to-low';
+                    document.addEventListener('click', function(e) {
+                        if (!form.contains(e.target)) {
+                            dropdown.style.display = 'none';
                         }
-                        const container = select.closest('.category-layout')?.querySelector('.products-grid') ||
-                                          document.querySelector('.products-grid');
-                        window.shuffleSortCatalog(mode, container);
-                    }
+                    });
                 });
             });
-
-            // Reusable AJAX Cart & Wishlist functions (no page refresh)
-            function showToast(msg) {
-                let t = document.getElementById('tryfit-toast');
-                if (!t) {
-                    t = document.createElement('div');
-                    t.id = 'tryfit-toast';
-                    t.className = 'tryfit-toast';
-                    document.body.appendChild(t);
-                }
-                t.innerHTML = msg;
-                t.classList.add('show');
-                clearTimeout(t._hideTimeout);
-                t._hideTimeout = setTimeout(() => {
-                    t.classList.remove('show');
-                }, 2400);
-            }
-
-            async function quickAddToCart(e, clothId) {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                const btn = e ? e.currentTarget : null;
-                const origText = btn ? btn.textContent : '';
-                if (btn) {
-                    btn.disabled = true;
-                    btn.textContent = 'Adding...';
-                }
-                try {
-                    const res = await fetch('/api/cart/add', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cloth_id: clothId, quantity: 1, size: 'M', color: 'Black' })
-                    });
-                    const data = await res.json();
-                    if (res.ok && data.success !== false) {
-                        const countEl = document.querySelector('.cart-count');
-                        if (countEl) {
-                            if (data.cart_count !== undefined) countEl.textContent = data.cart_count;
-                            else countEl.textContent = parseInt(countEl.textContent || '0') + 1;
-                        }
-                        showToast('✓ Added to Cart!');
-                        if (btn) {
-                            btn.textContent = 'Added ✓';
-                            btn.style.backgroundColor = '#15803d';
-                            btn.style.color = '#ffffff';
-                            btn.style.borderColor = '#15803d';
-                            setTimeout(() => {
-                                btn.disabled = false;
-                                btn.textContent = origText;
-                                btn.style.backgroundColor = '';
-                                btn.style.color = '';
-                                btn.style.borderColor = '';
-                            }, 1600);
-                        }
-                    } else {
-                        showToast(data.error || 'Please login to add to cart');
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.textContent = origText;
-                        }
-                    }
-                } catch (err) {
-                    showToast('✓ Added to Cart!');
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = origText;
-                    }
-                }
-            }
-
-            async function addToWishlist(e, clothId) {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                const btn = e ? e.currentTarget : null;
-                try {
-                    const res = await fetch('/wishlist/add', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cloth_id: clothId })
-                    });
-                    if (res.status === 401) {
-                        window.location.href = '/account';
-                        return;
-                    }
-                    if (btn) {
-                        btn.classList.toggle('active');
-                        const svg = btn.querySelector('svg');
-                        if (svg) {
-                            svg.setAttribute('fill', 'var(--primary)');
-                            svg.setAttribute('stroke', 'var(--primary)');
-                        }
-                    }
-                    showToast('♥ Saved to Wishlist!');
-                } catch (err) {
-                    showToast('♥ Saved to Wishlist!');
-                }
-            }
         </script>
         """
 
-    def render_template(self, filepath, user=None, show_back_btn=None, **kwargs):
+    def render_template(self, filepath, user=None, **kwargs):
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            if show_back_btn is None:
-                # Show back button on all pages (on home page it dynamically shows when navigated from within site)
-                show_back_btn = True
-
             # Inject Global Header and Footer
-            content = content.replace('{{HEADER}}', self.get_header_html(user, show_back_btn=show_back_btn))
+            content = content.replace('{{HEADER}}', self.get_header_html(user))
             content = content.replace('{{FOOTER}}', self.get_footer_html())
 
             for k, v in kwargs.items():
@@ -682,7 +598,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 return '<div class="empty-trials"><p>No clothing items available right now.</p></div>'
 
             cards = []
-            for idx, item in enumerate(items):
+            for item in items:
                 price_int = int(float(item['price']))
                 trial_int = int(float(item['trial_price']))
 
@@ -700,12 +616,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     link_href = f"/product?id={item['id']}"
 
                 cards.append(f"""
-                <div class="product-card" id="product-card-{item['id']}" data-id="{item['id']}" data-price="{price_int}" data-trial-price="{trial_int}" data-name="{item['name']}" data-category="{item['category']}" data-original-order="{idx}">
-                    <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                    </button>
+                <div class="product-card" id="product-card-{item['id']}">
                     <a href="{link_href}" style="text-decoration: none; color: inherit;">
                         <div class="product-img-wrapper">
                             <img src="{item['image_url']}" alt="{name_html}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -719,7 +630,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         </div>
                     </a>
                     <div style="padding: 0 16px 16px;">
-                        <button type="button" class="btn-try" onclick="quickAddToCart(event, {item['id']})">ADD TO CART</button>
+                        <a href="{link_href}" class="btn-try">{btn_text}</a>
                     </div>
                 </div>
                 """)
@@ -827,7 +738,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 return '<div class="empty-trials"><p>No clothing items available in this category right now.</p></div>'
 
             cards = []
-            for idx, item in enumerate(items):
+            for item in items:
                 price_int = int(float(item['price']))
                 trial_int = int(float(item['trial_price']))
 
@@ -845,12 +756,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     link_href = f"/product?id={item['id']}"
 
                 cards.append(f"""
-                <div class="product-card" id="product-card-{item['id']}" data-id="{item['id']}" data-price="{price_int}" data-trial-price="{trial_int}" data-name="{item['name']}" data-category="{item['category']}" data-original-order="{idx}">
-                    <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                    </button>
+                <div class="product-card" id="product-card-{item['id']}">
                     <a href="{link_href}" style="text-decoration: none; color: inherit;">
                         <div class="product-img-wrapper">
                             <img src="{item['image_url']}" alt="{name_html}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -864,7 +770,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         </div>
                     </a>
                     <div style="padding: 0 16px 16px;">
-                        <button type="button" class="btn-try" onclick="quickAddToCart(event, {item['id']})">ADD TO CART</button>
+                        <a href="{link_href}" class="btn-try">{btn_text}</a>
                     </div>
                 </div>
                 """)
@@ -925,14 +831,20 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         try:
             user = self.get_current_user()
             content = self.render_template('templates/index.html', user)
-        # Inject hero video playlist JSON
-        videos = self.get_hero_videos()
-        import json as _json
-        content = content.replace('{{HERO_VIDEOS_JSON}}', _json.dumps(videos))
+
+            # Inject hero video playlist JSON
+            videos = self.get_hero_videos()
+            import json as _json
+            content = content.replace('{{HERO_VIDEOS_JSON}}', _json.dumps(videos))
 
             category = query_params.get('category', ['all'])[0] if query_params else 'all'
             is_guest = (not user or user['id'] == 'guest')
-            content = self.replace_category_placeholders(content, limit=20, active_category=category, is_guest=is_guest)
+            content = self.replace_category_placeholders(
+                content,
+                limit=20,
+                active_category=category,
+                is_guest=is_guest
+            )
 
             alert_html = ""
             if query_params:
@@ -951,6 +863,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Length', str(len(encoded_content)))
             self.end_headers()
             self.wfile.write(encoded_content)
+
         except Exception as e:
             self.send_error(500, f"Error rendering index: {e}")
 
@@ -1063,12 +976,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error rendering OTP verify page: {e}")
 
-    def serve_book_trial(self, cloth_id, size='M', user=None):
+    def serve_book_trial(self, cloth_id, user):
         try:
-            if isinstance(size, dict) and user is None:
-                user = size
-                size = 'M'
-
             conn = db.get_connection()
             with conn.cursor() as cursor:
                 cursor.execute("SELECT * FROM clothes WHERE id = %s", (cloth_id,))
@@ -1084,7 +993,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
             price_int = int(float(cloth['price']))
             trial_int = int(float(cloth['trial_price']))
-            selected_size = str(size).strip() if size else 'M'
 
             content = content.replace('{{CLOTH_ID}}', str(cloth['id']))
             content = content.replace('{{CLOTH_NAME}}', cloth['name'])
@@ -1093,7 +1001,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             content = content.replace('{{CLOTH_PRICE}}', f"{price_int:,}")
             content = content.replace('{{TRIAL_PRICE}}', str(trial_int))
             content = content.replace('{{USER_NAME}}', user['name'] if user and 'name' in user else '')
-            content = content.replace('{{SELECTED_SIZE}}', selected_size)
 
             encoded_content = content.encode('utf-8')
             self.send_response(200)
@@ -1205,21 +1112,77 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         finally:
             conn.close()
 
+    def handle_search_suggestions(self, query_params):
+        q = query_params.get('q', [''])[0].strip() if query_params else ''
+        if not q or len(q) < 1:
+            self.send_json_success([])
+            return
+
+        conn = db.get_connection()
+        try:
+            with conn.cursor() as cursor:
+                sql, params = build_search_query(q, limit=6)
+                cursor.execute(sql, params)
+                items = cursor.fetchall()
+                results = []
+                for item in items:
+                    results.append({
+                        'id': item['id'],
+                        'name': item['name'].strip(),
+                        'category': item['category'],
+                        'price': float(item['price']),
+                        'trial_price': float(item['trial_price']),
+                        'image_url': item['image_url'],
+                        'available_colors': item.get('available_colors', '')
+                    })
+                self.send_json_success(results)
+        except Exception as e:
+            self.send_json_error(f"Suggestion error: {str(e)}", 500)
+        finally:
+            conn.close()
+
     def serve_search(self, query_params=None, user=None):
-        q = query_params.get('q', [''])[0] if query_params else ''
+        q = query_params.get('q', [''])[0].strip() if query_params else ''
         is_guest = not user or user['id'] == 'guest'
 
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM clothes WHERE name LIKE %s OR category LIKE %s", (f"%{q}%", f"%{q}%"))
+                sql, params = build_search_query(q)
+                cursor.execute(sql, params)
                 items = cursor.fetchall()
 
             if not items:
-                catalog_html = '<div class="empty-state"><p>No pieces matched your search.</p></div>'
+                sort_bar_html = ""
+                catalog_html = f'''
+                <div class="empty-state" style="grid-column: 1 / -1; padding: 70px 20px; text-align: center;">
+                    <div style="font-size: 3.5rem; margin-bottom: 16px;">🔍</div>
+                    <h3 style="font-family: var(--font-serif); font-size: 2.2rem; margin-bottom: 12px; color: var(--primary);">No outfit is available sorry</h3>
+                    <p style="color: var(--muted); font-size: 1.05rem; max-width: 500px; margin: 0 auto 24px; line-height: 1.6;">
+                        We couldn't find any available outfit matching "<strong>{html.escape(q)}</strong>". Try searching for specific colors (e.g. Blue, Black, Navy), categories (e.g. Shirts, Suits, Jeans, Boots), or brands.
+                    </p>
+                    <a href="/category?category=all" class="btn-primary" style="padding: 12px 34px; display:inline-block;">Explore All Collections</a>
+                </div>
+                '''
             else:
+                sort_bar_html = '''
+                <!-- 3D Shuffle Catalog Sort Bar -->
+                <div class="catalog-sort-bar">
+                    <div class="catalog-sort-info">
+                        <span class="catalog-sort-title">Matched Pieces</span>
+                        <span class="sort-3d-badge">3D Interactive</span>
+                    </div>
+                    <div class="catalog-sort-controls">
+                        <select class="luxury-sort-dropdown" aria-label="Sort products">
+                            <option value="featured">Sort: Featured</option>
+                            <option value="low-to-high">Price: Low to High</option>
+                            <option value="high-to-low">Price: High to Low</option>
+                        </select>
+                    </div>
+                </div>
+                '''
                 cards = []
-                for idx, item in enumerate(items):
+                for item in items:
                     price_int = int(float(item['price']))
                     trial_int = int(float(item['trial_price']))
 
@@ -1237,12 +1200,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         link_href = f"/product?id={item['id']}"
 
                     cards.append(f"""
-                    <div class="product-card" id="product-card-{item['id']}" data-id="{item['id']}" data-price="{price_int}" data-trial-price="{trial_int}" data-name="{item['name']}" data-category="{item['category']}" data-original-order="{idx}">
-                        <button type="button" class="wishlist-btn" onclick="addToWishlist(event, {item['id']})" title="Add to Wishlist" aria-label="Add to Wishlist">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                            </svg>
-                        </button>
+                    <div class="product-card" id="product-card-{item['id']}">
                         <a href="{link_href}" style="text-decoration: none; color: inherit;">
                             <div class="product-img-wrapper">
                                 <img src="{item['image_url']}" alt="{name_html}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/placeholder.svg';">
@@ -1256,20 +1214,13 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                             </div>
                         </a>
                         <div style="padding: 0 16px 16px;">
-                            <button type="button" class="btn-try" onclick="quickAddToCart(event, {item['id']})">ADD TO CART</button>
+                            <a href="{link_href}" class="btn-try">{btn_text}</a>
                         </div>
                     </div>
                     """)
-                catalog_html = "\\n".join(cards)
+                catalog_html = "\n".join(cards)
 
-            with open('templates/search_results.html', 'r', encoding='utf-8') as f:
-                content = f.read()
-
-            content = content.replace('{{HEADER}}', self.get_header_html(user))
-            content = content.replace('{{FOOTER}}', self.get_footer_html())
-            content = content.replace('{{CATALOG_GRID}}', catalog_html)
-            content = content.replace('{{SEARCH_QUERY}}', q)
-
+            content = self.render_template('templates/search_results.html', user, CATALOG_GRID=catalog_html, SEARCH_QUERY=html.escape(q), SORT_BAR=sort_bar_html)
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -1305,7 +1256,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
     def serve_cart(self, query_params, user):
         try:
-            cart_html = ""
+            items = []
             total = 0
             if user:
                 conn = db.get_connection()
@@ -1320,41 +1271,102 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                         for i in items:
                             item_total = float(i['price']) * i['quantity']
                             total += item_total
-                            cart_html += f"""
-                            <div class="cart-item">
-                                <img src="{i['image_url']}" alt="{i['name']}">
-                                <div class="cart-details">
-                                    <h3>{i['name']}</h3>
-                                    <p class="cart-meta">Size: {i['size']} | Color: {i['color']}</p>
-                                    <p class="cart-meta">In Stock</p>
-                                    <div class="cart-actions">
-                                        <form method="POST" action="/cart/update" style="display:flex; gap:10px; align-items:center;">
-                                            <input type="hidden" name="cart_id" value="{i['cart_id']}">
-                                            <select name="quantity" onchange="this.form.submit()" style="padding:5px; border:1px solid var(--border);">
-                                                <option value="1" {'selected' if i['quantity']==1 else ''}>Qty: 1</option>
-                                                <option value="2" {'selected' if i['quantity']==2 else ''}>Qty: 2</option>
-                                                <option value="3" {'selected' if i['quantity']==3 else ''}>Qty: 3</option>
-                                                <option value="4" {'selected' if i['quantity']==4 else ''}>Qty: 4</option>
-                                            </select>
-                                            <noscript><button type="submit" class="btn-secondary" style="padding:5px 10px;">Update</button></noscript>
-                                        </form>
-                                        <span style="color:var(--border);">|</span>
-                                        <form method="POST" action="/cart/remove">
-                                            <input type="hidden" name="cart_id" value="{i['cart_id']}">
-                                            <button type="submit" class="btn-text" style="font-size:0.75rem;">Delete</button>
-                                        </form>
-                                    </div>
-                                </div>
-                                <div class="cart-price">₹{float(i['price']):,.2f}</div>
-                            </div>
-                            """
                 finally:
                     conn.close()
 
-            if not cart_html:
-                cart_html = "<div class='empty-state' style='grid-column:1/-1;'><h3>Your TRY-FIT Cart is empty.</h3><a href='/category' class='btn-primary'>Continue Shopping</a></div>"
+            alert_html = ""
+            if query_params:
+                if 'error' in query_params:
+                    msg = urllib.parse.unquote(query_params['error'][0])
+                    alert_html = f'<div class="toast-alert alert-error">{msg}</div>'
+                elif 'success' in query_params:
+                    msg = urllib.parse.unquote(query_params['success'][0])
+                    alert_html = f'<div class="toast-alert alert-success">{msg}</div>'
 
-            content = self.render_template('templates/cart.html', user, CART_ITEMS=cart_html, CART_TOTAL=f"₹{total:,.2f}")
+            if items and total > 0:
+                cart_items_html = ""
+                for i in items:
+                    cart_items_html += f"""
+                    <div class="cart-item">
+                        <img src="{i['image_url']}" alt="{i['name']}">
+                        <div class="cart-details">
+                            <h3>{i['name']}</h3>
+                            <p class="cart-meta">Size: {i['size']} | Color: {i['color']}</p>
+                            <p class="cart-meta">In Stock</p>
+                            <div class="cart-actions">
+                                <form method="POST" action="/cart/update" style="display:flex; gap:10px; align-items:center;">
+                                    <input type="hidden" name="cart_id" value="{i['cart_id']}">
+                                    <select name="quantity" onchange="this.form.submit()" style="padding:5px; border:1px solid var(--border);">
+                                        <option value="1" {'selected' if i['quantity']==1 else ''}>Qty: 1</option>
+                                        <option value="2" {'selected' if i['quantity']==2 else ''}>Qty: 2</option>
+                                        <option value="3" {'selected' if i['quantity']==3 else ''}>Qty: 3</option>
+                                        <option value="4" {'selected' if i['quantity']==4 else ''}>Qty: 4</option>
+                                    </select>
+                                    <noscript><button type="submit" class="btn-secondary" style="padding:5px 10px;">Update</button></noscript>
+                                </form>
+                                <span style="color:var(--border);">|</span>
+                                <form method="POST" action="/cart/remove">
+                                    <input type="hidden" name="cart_id" value="{i['cart_id']}">
+                                    <button type="submit" class="btn-text" style="font-size:0.75rem;">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="cart-price">₹{float(i['price']):,.2f}</div>
+                    </div>
+                    """
+
+                cart_body = f"""
+                <h1 style="font-family: var(--font-serif); font-size: 2.5rem; margin-bottom: 30px;">Shopping Cart</h1>
+                <div class="cart-layout">
+                    <!-- Items -->
+                    <div>
+                        {cart_items_html}
+                    </div>
+                    
+                    <!-- Summary -->
+                    <aside class="order-summary">
+                        <h3 style="margin-bottom: 20px; font-family: var(--font-serif); font-size: 1.5rem;">Order Summary</h3>
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span>₹{total:,.2f}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Shipping</span>
+                            <span>Free</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Taxes</span>
+                            <span>Calculated at checkout</span>
+                        </div>
+                        <div class="summary-total">
+                            <span>Estimated Total</span>
+                            <span>₹{total:,.2f}</span>
+                        </div>
+                        <a href="/checkout" class="btn-primary" style="width:100%; margin-top:20px; text-align:center; display:block;">Proceed to Checkout</a>
+                    </aside>
+                </div>
+                """
+            else:
+                cart_body = """
+                <div class="cart-empty-container">
+                    <div class="cart-empty-icon">
+                        <svg viewBox="0 0 24 24" width="68" height="68" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <path d="M16 10a4 4 0 0 1-8 0"></path>
+                        </svg>
+                    </div>
+                    <h2 style="font-family: var(--font-serif); font-size: 2.2rem; margin-top: 24px; margin-bottom: 12px; color: var(--primary);">Your cart is empty</h2>
+                    <p style="color: var(--muted); font-size: 1.05rem; max-width: 480px; margin: 0 auto 32px; line-height: 1.6;">
+                        Your shopping bag is waiting for its first bespoke piece. Browse our seasonal catalog to find exclusive pieces and book your home trials.
+                    </p>
+                    <a href="/category?category=all" class="btn-primary" style="padding: 14px 40px; font-size: 0.95rem; letter-spacing: 1.5px; text-transform: uppercase; display:inline-block;">
+                        Continue Shopping
+                    </a>
+                </div>
+                """
+
+            content = self.render_template('templates/cart.html', user, CART_BODY=cart_body, MESSAGE_ALERT=alert_html)
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -1366,37 +1378,56 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
     def serve_checkout(self, query_params, user):
         try:
-            checkout_html = ""
-            total = 0
-            if user:
-                conn = db.get_connection()
-                try:
-                    with conn.cursor() as cursor:
-                        cursor.execute("""
-                            SELECT c.id as cart_id, cl.name, cl.image_url, cl.price, c.quantity, c.size, c.color
-                            FROM cart c JOIN clothes cl ON c.cloth_id = cl.id
-                            WHERE c.session_id = %s
-                        """, (user.get('session_id', ''),))
-                        items = cursor.fetchall()
-                        for i in items:
-                            item_total = float(i['price']) * i['quantity']
-                            total += item_total
-                            checkout_html += f"""
-                            <div class="checkout-summary">
-                                <img src="{i['image_url']}" alt="{i['name']}">
-                                <div>
-                                    <h4 style="margin-bottom:10px;">{i['name']}</h4>
-                                    <p style="color:var(--muted); font-size:0.85rem;">Size: {i['size']} | Color: {i['color']}</p>
-                                    <p style="color:var(--muted); font-size:0.85rem; margin-top:5px;">Qty: {i['quantity']}</p>
-                                    <p style="font-weight:600; margin-top:10px;">₹{float(i['price']):,.2f}</p>
-                                </div>
-                            </div>
-                            """
-                finally:
-                    conn.close()
+            session_id = user.get('session_id', '') if user else ''
 
-            user_name = user.get('name', '') if user and user.get('id') != 'guest' else ''
-            content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"₹{total:,.2f}", USER_NAME=user_name)
+            # Prevent access to checkout if cart has no items (check this first for all users)
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT c.id as cart_id, cl.name, cl.image_url, cl.price, c.quantity, c.size, c.color
+                        FROM cart c JOIN clothes cl ON c.cloth_id = cl.id
+                        WHERE c.session_id = %s
+                    """, (session_id,))
+                    items = cursor.fetchall()
+
+                    if not items:
+                        self.send_response(303)
+                        self.send_header('Location', '/cart?error=' + urllib.parse.quote("Your cart is empty. Please add items before proceeding to checkout."))
+                        self.end_headers()
+                        return
+
+                    total = sum(float(i['price']) * i['quantity'] for i in items)
+                    if total <= 0:
+                        self.send_response(303)
+                        self.send_header('Location', '/cart?error=' + urllib.parse.quote("Your cart is empty. Please add items before proceeding to checkout."))
+                        self.end_headers()
+                        return
+
+                    # Require login if user is guest and cart has items
+                    if not user or user.get('id') == 'guest':
+                        self.send_response(303)
+                        self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login to proceed to checkout."))
+                        self.end_headers()
+                        return
+
+                    checkout_html = ""
+                    for i in items:
+                        checkout_html += f"""
+                        <div class="checkout-summary">
+                            <img src="{i['image_url']}" alt="{i['name']}">
+                            <div>
+                                <h4 style="margin-bottom:10px;">{i['name']}</h4>
+                                <p style="color:var(--muted); font-size:0.85rem;">Size: {i['size']} | Color: {i['color']}</p>
+                                <p style="color:var(--muted); font-size:0.85rem; margin-top:5px;">Qty: {i['quantity']}</p>
+                                <p style="font-weight:600; margin-top:10px;">₹{float(i['price']):,.2f}</p>
+                            </div>
+                        </div>
+                        """
+            finally:
+                conn.close()
+
+            content = self.render_template('templates/checkout.html', user, CHECKOUT_ITEMS=checkout_html, CART_TOTAL=f"₹{total:,.2f}", USER_NAME=user.get('name', ''))
             encoded_content = content.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -1498,7 +1529,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                                     <div class="product-pricing">
                                         <span class="buy-price">Buy ₹{float(i['price']):,.2f}</span>
                                     </div>
-                                    <button type="button" class="btn-try" onclick="quickAddToCart(event, {i['id']})">ADD TO CART</button>
+                                    <a href="/product?id={i['id']}" class="btn-try">View Details</a>
                                 </div>
                             </div>
                             """
@@ -1557,8 +1588,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 'Content-Length',
                 str(os.path.getsize(filepath))
             )
-            if filepath.startswith('static/') or filepath.startswith('/static/'):
-                self.send_header('Cache-Control', 'no-cache, must-revalidate')
             self.end_headers()
             return
 
@@ -1575,55 +1604,22 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error(404, "Asset not found")
                 return
 
-            # Determine content type
             if path.endswith('.css'):
-                content_type = 'text/css'
-            elif path.endswith('.js'):
-                content_type = 'application/javascript'
-            elif path.endswith('.mp4'):
-                content_type = 'video/mp4'
-            elif path.endswith('.webm'):
-                content_type = 'video/webm'
-            elif path.endswith('.ogg'):
-                content_type = 'video/ogg'
+                self.serve_file(filepath, 'text/css')
             elif path.endswith('.jpg') or path.endswith('.jpeg'):
-                content_type = 'image/jpeg'
+                self.serve_file(filepath, 'image/jpeg')
             elif path.endswith('.png'):
-                content_type = 'image/png'
+                self.serve_file(filepath, 'image/png')
             elif path.endswith('.webp'):
-                content_type = 'image/webp'
+                self.serve_file(filepath, 'image/webp')
             elif path.endswith('.gif'):
-                content_type = 'image/gif'
+                self.serve_file(filepath, 'image/gif')
             elif path.endswith('.svg'):
-                content_type = 'image/svg+xml'
+                self.serve_file(filepath, 'image/svg+xml')
             elif path.endswith('.ico'):
-                content_type = 'image/x-icon'
+                self.serve_file(filepath, 'image/x-icon')
             else:
-                content_type = 'application/octet-stream'
-
-            # Range handling for video files
-            if content_type.startswith('video/') and 'Range' in self.headers:
-                range_header = self.headers['Range']
-                try:
-                    bytes_range = range_header.replace('bytes=', '').split('-')
-                    start = int(bytes_range[0]) if bytes_range[0] else 0
-                    end = int(bytes_range[1]) if bytes_range[1] else os.path.getsize(filepath) - 1
-                    length = end - start + 1
-                    with open(filepath, 'rb') as f:
-                        f.seek(start)
-                        data = f.read(length)
-                    self.send_response(206)
-                    self.send_header('Content-Type', content_type)
-                    self.send_header('Content-Range', f'bytes {start}-{end}/{os.path.getsize(filepath)}')
-                    self.send_header('Content-Length', str(length))
-                    self.send_header('Accept-Ranges', 'bytes')
-                    self.end_headers()
-                    self.wfile.write(data)
-                except Exception as e:
-                    logger.warning('Range request failed: %s', e)
-                    self.serve_file(filepath, content_type)
-            else:
-                self.serve_file(filepath, content_type)
+                self.serve_file(filepath, 'application/octet-stream')
             return
 
         # Core routes
@@ -1671,6 +1667,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.serve_product(query_params, user)
             return
 
+        elif path == '/api/search/suggestions':
+            self.handle_search_suggestions(query_params)
+            return
+
         elif path == '/search':
             user = self.get_current_user()
             self.serve_search(query_params, user)
@@ -1686,7 +1686,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.serve_dashboard(user, query_params)
             return
 
-        elif path == '/admin' or path == '/admin/':
+        elif path == '/admin':
             self.send_response(303)
             self.send_header('Location', '/admin/dashboard')
             self.end_headers()
@@ -1714,7 +1714,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/guest-login':
             self.send_response(303)
-            self.set_secure_cookie('session_id', 'guest', 86400)
+            self.send_header('Set-Cookie', 'session_id=guest; Path=/; HttpOnly; Max-Age=86400')
             self.send_header('Location', '/')
             self.end_headers()
             return
@@ -1744,7 +1744,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/logout':
             self.send_response(303)
-            self.set_secure_cookie('session_id', '', 0)
+            self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
             self.send_header('Location', '/')
             self.end_headers()
             return
@@ -1818,11 +1818,6 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         elif path.startswith('/admin/') and path not in ('/admin/login', '/admin/dashboard', '/admin/api/login', '/admin/api/seed'):
             user = self.get_current_user()
-            if not user or user.get('role') != 'admin':
-                self.send_response(303)
-                self.send_header('Location', '/admin/login')
-                self.end_headers()
-                return
             title = path.replace('/admin/', '').replace('_', ' ').title()
             try:
                 content = self.render_template('templates/admin_stub.html', user, TITLE=title)
@@ -1873,36 +1868,22 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.handle_wishlist_add()
         elif path == '/api/wishlist/remove' or path == '/wishlist/remove':
             self.handle_wishlist_remove()
-        elif path.startswith('/admin/') or (path.startswith('/api/admin/') and path not in ('/api/admin/login', '/admin-login')):
-            user = self.get_current_user()
-            if not user or user.get('role') != 'admin':
-                if self.is_form_submission():
-                    self.send_response(303)
-                    self.send_header('Location', '/admin/login')
-                    self.end_headers()
-                else:
-                    self.send_json_error("Unauthorized: Admin access required", 401)
-                return
-            self.send_json_error("Endpoint not found", 404)
         else:
             self.send_json_error("Endpoint not found", 404)
 
     def handle_cart_add(self):
         user = self.get_current_user()
-        new_session = False
         if not user:
-            session_id = uuid.uuid4().hex
-            user = {'id': 'guest', 'name': 'Guest', 'email': '', 'role': 'user', 'session_id': session_id}
-            new_session = True
+            self.send_response(303)
+            self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
+            self.end_headers()
+            return
 
         data = self.get_post_data()
         cloth_id = data.get('cloth_id')
         size = str(data.get('size', 'M')).strip()
         color = str(data.get('color', 'Black')).strip()
-        try:
-            qty = int(data.get('quantity', 1))
-        except (ValueError, TypeError):
-            qty = 1
+        qty = int(data.get('quantity', 1))
 
         session_id = user.get('session_id', '')
 
@@ -1921,100 +1902,46 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
             if self.is_form_submission():
                 self.send_response(303)
-                if new_session:
-                    self.set_secure_cookie('session_id', session_id, 86400)
                 self.send_header('Location', '/cart?success=' + urllib.parse.quote("Added to cart"))
                 self.end_headers()
-            else:
-                count = self.get_cart_count(user)
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                if new_session:
-                    self.set_secure_cookie('session_id', session_id, 86400)
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True, "message": "Added to cart", "cart_count": count}).encode('utf-8'))
         except Exception as e:
-            logger.error("Cart Add Error: %s", e)
-            self.send_json_error(f"Cart Add Error: {e}", 500)
+            self.send_error(500, f"Cart Add Error: {e}")
         finally:
             conn.close()
 
     def handle_cart_update(self):
-        user = self.get_current_user()
-        session_id = user.get('session_id', '') if user else ''
-        if not session_id:
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/cart')
-                self.end_headers()
-                return
-            self.send_json_error("Session not found", 401)
-            return
-
         data = self.get_post_data()
         cart_id = data.get('cart_id')
-        try:
-            qty = int(data.get('quantity', 1))
-        except (ValueError, TypeError):
-            qty = 1
+        qty = int(data.get('quantity', 1))
 
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("UPDATE cart SET quantity = %s WHERE id = %s AND session_id = %s", (qty, cart_id, session_id))
+                cursor.execute("UPDATE cart SET quantity = %s WHERE id = %s", (qty, cart_id))
                 conn.commit()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/cart')
                 self.end_headers()
-            else:
-                count = self.get_cart_count(user)
-                self.send_json_success({"success": True, "message": "Cart updated", "cart_count": count})
         except Exception as e:
-            logger.error("Cart Update Error: %s", e)
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/cart')
-                self.end_headers()
-            else:
-                self.send_json_error(f"Cart Update Error: {e}", 500)
+            pass
         finally:
             conn.close()
 
     def handle_cart_remove(self):
-        user = self.get_current_user()
-        session_id = user.get('session_id', '') if user else ''
-        if not session_id:
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/cart')
-                self.end_headers()
-                return
-            self.send_json_error("Session not found", 401)
-            return
-
         data = self.get_post_data()
         cart_id = data.get('cart_id')
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM cart WHERE id = %s AND session_id = %s", (cart_id, session_id))
+                cursor.execute("DELETE FROM cart WHERE id = %s", (cart_id,))
                 conn.commit()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/cart?success=' + urllib.parse.quote("Item removed"))
                 self.end_headers()
-            else:
-                count = self.get_cart_count(user)
-                self.send_json_success({"success": True, "message": "Item removed", "cart_count": count})
-        except Exception as e:
-            logger.error("Cart Remove Error: %s", e)
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/cart?error=' + urllib.parse.quote("Error removing item"))
-                self.end_headers()
-            else:
-                self.send_json_error(f"Cart Remove Error: {e}", 500)
+        except Exception:
+            pass
         finally:
             conn.close()
 
@@ -2028,13 +1955,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
 
         data = self.get_post_data()
         address = str(data.get('address', '')).strip()
-        customer_name = str(data.get('name', '')).strip() or (user.get('name', '') if user else '')
         payment_method = str(data.get('payment_method', 'Cash on Delivery')).strip()
-        if payment_method.lower() == 'razorpay':
-            self.send_response(303)
-            self.send_header('Location', '/checkout?error=' + urllib.parse.quote('Razorpay requires JavaScript. Please enable it.'))
-            self.end_headers()
-            return
 
         conn = db.get_connection()
         try:
@@ -2055,9 +1976,9 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 total = sum(float(i['price']) * i['quantity'] for i in items)
 
                 cursor.execute("""
-                    INSERT INTO orders (user_id, customer_name, total_amount, final_total, delivery_address, payment_method, payment_status)
-                    VALUES (%s, %s, %s, %s, %s, %s, 'created')
-                """, (user['id'], customer_name, total, total, address, payment_method))
+                    INSERT INTO orders (user_id, total_amount, final_total, delivery_address, payment_method)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (user['id'], total, total, address, payment_method))
                 order_id = cursor.lastrowid
 
                 for i in items:
@@ -2078,230 +1999,179 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
     def handle_razorpay_create_order(self):
         user = self.get_current_user()
+
+        if not user or user['id'] == 'guest':
+            self.send_json_error("Please login to checkout", 401)
+            return
+
+        conn = db.get_connection()
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT cl.price, c.quantity
+                    FROM cart c
+                    JOIN clothes cl ON c.cloth_id = cl.id
+                    WHERE c.session_id = %s
+                """, (user['session_id'],))
+
+                items = cursor.fetchall()
+
+                if not items:
+                    self.send_json_error("Cart is empty", 400)
+                    return
+
+                total = sum(
+                    float(item['price']) * int(item['quantity'])
+                    for item in items
+                )
+
+                amount_paise = int(round(total * 100))
+
+                razorpay_order = razorpay_client.order.create({
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "receipt": f"tryfit_{user['id']}_{random.randint(100000, 999999)}",
+                    "payment_capture": 1
+                })
+
+                self.send_json_response({
+                    "success": True,
+                    "order_id": razorpay_order["id"],
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "key_id": config.RAZORPAY_KEY_ID
+                })
+
+        except Exception as e:
+            self.send_json_error(
+                f"Razorpay order creation failed: {e}",
+                500
+            )
+
+        finally:
+            conn.close()
+    def handle_razorpay_verify_payment(self):
+        user = self.get_current_user()
+
         if not user or user['id'] == 'guest':
             self.send_json_error("Please login to checkout", 401)
             return
 
         data = self.get_post_data()
-        address = str(data.get('address', '')).strip()
-        customer_name = str(data.get('name', '')).strip() or (user.get('name', '') if user else '')
-        if not address:
-            self.send_json_error("Delivery address is required", 400, code="ADDRESS_REQUIRED")
+
+        razorpay_order_id = str(
+            data.get('razorpay_order_id', '')
+        ).strip()
+
+        razorpay_payment_id = str(
+            data.get('razorpay_payment_id', '')
+        ).strip()
+
+        razorpay_signature = str(
+            data.get('razorpay_signature', '')
+        ).strip()
+
+        if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+            self.send_json_error("Payment verification data is missing", 400)
             return
 
-        if not config.RAZORPAY_KEY_ID or not config.RAZORPAY_KEY_SECRET:
-            self.send_json_error("Razorpay gateway is not configured on the server", 500, code="GATEWAY_NOT_CONFIGURED")
+        try:
+            razorpay_client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+
+        except Exception:
+            self.send_json_error("Payment verification failed", 400)
             return
 
         conn = db.get_connection()
+
         try:
             with conn.cursor() as cursor:
-                # 1. Fetch user's cart items
                 cursor.execute("""
-                    SELECT c.id as cart_id, cl.id as cloth_id, cl.name, cl.price, c.quantity, c.size, c.color
-                    FROM cart c JOIN clothes cl ON c.cloth_id = cl.id
+                    SELECT cl.id as cloth_id,
+                           cl.price,
+                           c.quantity,
+                           c.size,
+                           c.color
+                    FROM cart c
+                    JOIN clothes cl ON c.cloth_id = cl.id
                     WHERE c.session_id = %s
                 """, (user['session_id'],))
+
                 items = cursor.fetchall()
 
                 if not items:
-                    self.send_json_error("Cart is empty", 400, code="CART_EMPTY")
+                    self.send_json_error("Cart is empty", 400)
                     return
 
-                # 2. Calculate totals
-                total = sum(float(i['price']) * i['quantity'] for i in items)
-                amount_paise = int(round(total * 100))
+                total = sum(
+                    float(item['price']) * int(item['quantity'])
+                    for item in items
+                )
 
-                if amount_paise <= 0:
-                    self.send_json_error("Invalid order amount", 400, code="INVALID_AMOUNT")
-                    return
-
-                # 3. Create TRY-FIT order record
                 cursor.execute("""
-                    INSERT INTO orders (user_id, customer_name, total_amount, final_total, delivery_address, payment_method, status, payment_status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (user['id'], customer_name, total, total, address, 'Razorpay', 'Pending', 'created'))
-                tryfit_order_id = cursor.lastrowid
+                    INSERT INTO orders
+                    (user_id, total_amount, final_total,
+                     delivery_address, payment_method)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    user['id'],
+                    total,
+                    total,
+                    str(data.get('address', '')).strip(),
+                    'Razorpay'
+                ))
 
-                # 4. Insert order items
+                order_id = cursor.lastrowid
+
                 for item in items:
                     cursor.execute("""
-                        INSERT INTO order_items (order_id, cloth_id, quantity, price, size, color)
+                        INSERT INTO order_items
+                        (order_id, cloth_id, quantity, price, size, color)
                         VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (tryfit_order_id, item['cloth_id'], item['quantity'], item['price'], item['size'], item['color']))
+                    """, (
+                        order_id,
+                        item['cloth_id'],
+                        item['quantity'],
+                        item['price'],
+                        item['size'],
+                        item['color']
+                    ))
 
-                # 5. Create Razorpay order via SDK
-                rzp_client = razorpay.Client(auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET))
-                razorpay_order = rzp_client.order.create({
-                    "amount": amount_paise,
-                    "currency": "INR",
-                    "receipt": f"tryfit_order_{tryfit_order_id}",
-                    "payment_capture": 1
-                })
-                razorpay_order_id = razorpay_order["id"]
-
-                # 6. Save Razorpay order ID to the TRY-FIT order
-                cursor.execute("UPDATE orders SET razorpay_order_id = %s WHERE id = %s", (razorpay_order_id, tryfit_order_id))
-                conn.commit()
-
-            # Note: Cart is NOT cleared here; only after successful payment verification.
-            self.send_json_success({
-                "success": True,
-                "tryfit_order_id": tryfit_order_id,
-                "order_id": razorpay_order_id,
-                "amount": amount_paise,
-                "currency": "INR",
-                "key_id": config.RAZORPAY_KEY_ID
-            })
-        except Exception as e:
-            conn.rollback()
-            print("Razorpay order creation error:", e)
-            self.send_json_error("Failed to initialize payment order", 500)
-        finally:
-            conn.close()
-
-    def handle_razorpay_verify_payment(self):
-        user = self.get_current_user()
-        if not user or user['id'] == 'guest':
-            self.send_json_error("Please login to checkout", 401, code="UNAUTHORIZED")
-            return
-
-        data = self.get_post_data()
-        tryfit_order_id = data.get('tryfit_order_id')
-        razorpay_order_id = str(data.get('razorpay_order_id', '')).strip()
-        razorpay_payment_id = str(data.get('razorpay_payment_id', '')).strip()
-        razorpay_signature = str(data.get('razorpay_signature', '')).strip()
-
-        if not tryfit_order_id or not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
-            self.send_json_error("Payment verification data is missing", 400, code="MISSING_PAYMENT_DATA")
-            return
-
-        if not config.RAZORPAY_KEY_ID or not config.RAZORPAY_KEY_SECRET:
-            self.send_json_error("Razorpay gateway is not configured on the server", 500, code="GATEWAY_NOT_CONFIGURED")
-            return
-
-        conn = db.get_connection()
-        try:
-            with conn.cursor() as cursor:
-                # 1. Fetch TRY-FIT order and verify ownership
                 cursor.execute("""
-                    SELECT id, user_id, final_total, status, payment_status, razorpay_order_id
-                    FROM orders
-                    WHERE id = %s
-                """, (tryfit_order_id,))
-                order = cursor.fetchone()
-
-                if not order:
-                    self.send_json_error("Order not found", 404, code="ORDER_NOT_FOUND")
-                    return
-
-                if int(order['user_id']) != int(user['id']):
-                    self.send_json_error("Unauthorized order access", 403, code="FORBIDDEN")
-                    return
-
-                # 2. Idempotency / Double-payment protection
-                if str(order.get('payment_status', '')).lower() == 'paid':
-                    self.send_json_success({
-                        "success": True,
-                        "status": "already_paid",
-                        "order_id": tryfit_order_id,
-                        "message": "Order is already paid"
-                    })
-                    return
-
-                # 3. Verify Razorpay order ID matches stored order
-                if str(order.get('razorpay_order_id', '')).strip() != razorpay_order_id:
-                    self.send_json_error("Razorpay order ID mismatch", 400, code="ORDER_ID_MISMATCH")
-                    return
-
-                # 4. Verify signature using Razorpay SDK
-                rzp_client = razorpay.Client(auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET))
-                try:
-                    rzp_client.utility.verify_payment_signature({
-                        'razorpay_order_id': razorpay_order_id,
-                        'razorpay_payment_id': razorpay_payment_id,
-                        'razorpay_signature': razorpay_signature
-                    })
-                except Exception as sig_err:
-                    logger.error("Razorpay signature verification failed: %s", sig_err)
-                    self.send_json_error("Payment verification signature is invalid", 400, code="INVALID_SIGNATURE")
-                    return
-
-                # 5. Fetch payment details from Razorpay to verify amount, currency and order link
-                try:
-                    payment_info = rzp_client.payment.fetch(razorpay_payment_id)
-                except Exception as pay_err:
-                    logger.error("Failed to fetch payment details from Razorpay: %s", pay_err)
-                    self.send_json_error("Failed to verify payment with payment gateway", 502, code="GATEWAY_FETCH_FAILED")
-                    return
-
-                expected_amount_paise = int(round(float(order['final_total']) * 100))
-                actual_amount_paise = int(payment_info.get('amount', 0))
-                actual_currency = str(payment_info.get('currency', '')).upper()
-                actual_order_id = str(payment_info.get('order_id', '')).strip()
-                actual_status = str(payment_info.get('status', '')).lower()
-
-                if actual_order_id != razorpay_order_id:
-                    self.send_json_error("Payment does not correspond to this order", 400, code="ORDER_LINK_MISMATCH")
-                    return
-
-                if actual_amount_paise != expected_amount_paise:
-                    self.send_json_error("Payment amount mismatch", 400, code="AMOUNT_MISMATCH")
-                    return
-
-                if actual_currency != 'INR':
-                    self.send_json_error("Payment currency mismatch", 400, code="CURRENCY_MISMATCH")
-                    return
-
-                if actual_status != 'captured':
-                    self.send_json_error(
-                        f"Payment status is '{actual_status}', not captured",
-                        400,
-                        code="PAYMENT_NOT_CAPTURED"
-                    )
-                    return
-
-                # 6. Transaction: Mark order as PAID and clear user's cart
-                cursor.execute("""
-                    UPDATE orders
-                    SET razorpay_payment_id = %s,
-                        razorpay_signature = %s,
-                        payment_status = 'paid',
-                        status = 'Processing',
-                        payment_verified_at = NOW()
-                    WHERE id = %s
-                """, (razorpay_payment_id, razorpay_signature, tryfit_order_id))
-
-                # Clear only this user's cart
-                cursor.execute("DELETE FROM cart WHERE session_id = %s", (user['session_id'],))
+                    DELETE FROM cart
+                    WHERE session_id = %s
+                """, (user['session_id'],))
 
                 conn.commit()
 
-            self.send_json_success({
+            self.send_json_response({
                 "success": True,
-                "status": "paid",
-                "order_id": tryfit_order_id,
-                "message": "Payment verified and order placed successfully"
+                "message": "Payment successful and order placed",
+                "order_id": order_id
             })
 
         except Exception as e:
             conn.rollback()
-            logger.error("Payment verification error: %s", e)
-            self.send_json_error("An error occurred while confirming your order", 500, code="SERVER_ERROR")
+            self.send_json_error(
+                f"Order creation failed: {e}",
+                500
+            )
+
         finally:
             conn.close()
 
-
-
+    
     def handle_wishlist_add(self):
         user = self.get_current_user()
         if not user or user['id'] == 'guest':
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
-                self.end_headers()
-                return
-            self.send_json_error("Please login first to add to wishlist", 401, code="UNAUTHORIZED")
+            self.send_response(303)
+            self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
+            self.end_headers()
             return
 
         data = self.get_post_data()
@@ -2315,46 +2185,25 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(303)
                 self.send_header('Location', '/wishlist?success=' + urllib.parse.quote("Added to wishlist"))
                 self.end_headers()
-            else:
-                self.send_json_success({"success": True, "message": "Added to wishlist"})
-        except Exception as e:
-            logger.error("Wishlist Add Error: %s", e)
-            self.send_json_error("Could not add to wishlist", 500)
+        except Exception:
+            pass
         finally:
             conn.close()
 
     def handle_wishlist_remove(self):
-        user = self.get_current_user()
-        if not user or user['id'] == 'guest':
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/account?error=' + urllib.parse.quote("Please login first"))
-                self.end_headers()
-                return
-            self.send_json_error("Please login first", 401, code="UNAUTHORIZED")
-            return
-
         data = self.get_post_data()
         wish_id = data.get('wish_id')
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM wishlist WHERE id = %s AND user_id = %s", (wish_id, user['id']))
+                cursor.execute("DELETE FROM wishlist WHERE id = %s", (wish_id,))
                 conn.commit()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', '/wishlist?success=' + urllib.parse.quote("Removed from wishlist"))
                 self.end_headers()
-            else:
-                self.send_json_success({"success": True, "message": "Removed from wishlist"})
-        except Exception as e:
-            logger.error("Wishlist Remove Error: %s", e)
-            if self.is_form_submission():
-                self.send_response(303)
-                self.send_header('Location', '/wishlist?error=' + urllib.parse.quote("Could not remove item"))
-                self.end_headers()
-            else:
-                self.send_json_error("Could not remove item from wishlist", 500)
+        except Exception:
+            pass
         finally:
             conn.close()
 
@@ -2370,7 +2219,8 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 cursor.execute("SELECT id FROM users WHERE email = %s AND role = 'admin'", (email,))
                 user = cursor.fetchone()
 
-                if user and config.ADMIN_PASSWORD and password == config.ADMIN_PASSWORD:
+                # Using a hardcoded password for simplicity for the admin account for now
+                if user and password == "admin123":
                     session_id = uuid.uuid4().hex
                     cursor.execute("INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)", (session_id, user['id']))
                     conn.commit()
@@ -2378,7 +2228,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     self.send_response(303 if self.is_form_submission() else 200)
                     if not self.is_form_submission():
                         self.send_header('Content-Type', 'application/json')
-                    self.set_secure_cookie('session_id', session_id, 86400)
+                    self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
                     if self.is_form_submission():
                         self.send_header('Location', '/admin/dashboard')
                     self.end_headers()
@@ -2581,99 +2431,16 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
 
+            self.send_response(303 if self.is_form_submission() else 200)
+            if not self.is_form_submission():
+                self.send_header('Content-Type', 'application/json')
+            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
             if self.is_form_submission():
-                display_name = name or (user_rec.get('name') if 'user_rec' in locals() and user_rec else '') or 'valued customer'
-                success_page_html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="2;url=/">
-    <title>Login Successful | TRY-FIT</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <style>
-        .login-success-wrap {{
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--background);
-            padding: 20px;
-        }}
-        .login-success-card {{
-            background: var(--white);
-            border: 1px solid var(--border);
-            padding: 50px 40px;
-            max-width: 460px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
-            border-radius: 4px;
-            animation: fadeInScale 0.4s ease-out;
-        }}
-        .success-icon-circle {{
-            width: 68px;
-            height: 68px;
-            border-radius: 50%;
-            background: #111111;
-            color: #ffffff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px auto;
-        }}
-        @keyframes fadeInScale {{
-            from {{ opacity: 0; transform: scale(0.95); }}
-            to {{ opacity: 1; transform: scale(1); }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="login-success-wrap">
-        <div class="login-success-card">
-            <div class="success-icon-circle">
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-            </div>
-            <h1 style="font-family: var(--font-serif); font-size: 2rem; margin-bottom: 12px; color: var(--primary);">Login Successful</h1>
-            <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.5;">
-                Welcome to TRY-FIT, <strong>{display_name}</strong>.<br>Redirecting you to the home page...
-            </p>
-            <div style="font-size: 0.85rem; color: var(--muted);">
-                Redirecting in <span id="sec-count">2</span>s...
-            </div>
-        </div>
-    </div>
-    <script>
-        let s = 2;
-        const countEl = document.getElementById('sec-count');
-        const iv = setInterval(() => {{
-            s--;
-            if (countEl) countEl.textContent = s;
-            if (s <= 0) {{
-                clearInterval(iv);
-                window.location.href = '/';
-            }}
-        }}, 1000);
-        setTimeout(() => {{ window.location.href = '/'; }}, 2000);
-    </script>
-</body>
-</html>"""
-                encoded = success_page_html.encode('utf-8')
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.send_header('Content-Length', str(len(encoded)))
-                self.set_secure_cookie('session_id', session_id, 86400)
-                self.end_headers()
-                self.wfile.write(encoded)
-                return
-
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.set_secure_cookie('session_id', session_id, 86400)
+                success_msg = "Account created successfully! Welcome to TRY-FIT." if purpose == 'register' else "Successfully logged in! Welcome back."
+                self.send_header('Location', '/?success=' + urllib.parse.quote(success_msg))
             self.end_headers()
-            self.wfile.write(json.dumps({"success": True, "message": "Successfully verified and logged in", "redirect": "/"}).encode('utf-8'))
+            if not self.is_form_submission():
+                self.wfile.write(json.dumps({"message": "Successfully verified and logged in"}).encode('utf-8'))
 
         except Exception as e:
             print("Verify OTP exception:", e)
@@ -2704,7 +2471,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(303 if self.is_form_submission() or 'text/html' in self.headers.get('Accept', '') else 200)
         if not self.is_form_submission() and 'text/html' not in self.headers.get('Accept', ''):
             self.send_header('Content-Type', 'application/json')
-        self.set_secure_cookie('session_id', '', 0)
+        self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
         if self.is_form_submission() or 'text/html' in self.headers.get('Accept', ''):
             self.send_header('Location', '/')
         self.end_headers()
@@ -2716,7 +2483,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(303 if self.is_form_submission() or 'text/html' in self.headers.get('Accept', '') else 200)
         if not self.is_form_submission() and 'text/html' not in self.headers.get('Accept', ''):
             self.send_header('Content-Type', 'application/json')
-        self.set_secure_cookie('session_id', session_id, 86400)
+        self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
         if self.is_form_submission() or 'text/html' in self.headers.get('Accept', ''):
             self.send_header('Location', '/')
         self.end_headers()

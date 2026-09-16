@@ -86,10 +86,11 @@
 
     <!-- 3. SEARCH MODAL -->
     <div class="search-modal" id="searchModal">
-        <form class="search-input-wrapper" method="GET" action="/search">
-            <input type="text" name="q" class="search-input" placeholder="Search cloth..." style="text-align: center;" required>
+        <form class="search-input-wrapper" method="GET" action="/search" style="position:relative;">
+            <input type="text" name="q" class="search-input" placeholder="Search cloth..." style="text-align: center;" required autocomplete="off">
             <button type="submit" style="position: absolute; right: 50px; top: 24px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--primary);">SEARCH</button>
             <label for="search-toggle" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--primary);">✕</label>
+            <div class="search-suggestions-dropdown" style="display:none;"></div>
         </form>
     </div>
 

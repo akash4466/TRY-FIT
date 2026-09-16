@@ -8,40 +8,13 @@
 </head>
 <body>
     {{HEADER}}
+    {{MESSAGE_ALERT}}
     
     <main class="container section-padding">
-        <h1 style="font-family: var(--font-serif); font-size: 2.5rem; margin-bottom: 30px;">Shopping Cart</h1>
-        
-        <div class="cart-layout">
-            <!-- Items -->
-            <div>
-                {{CART_ITEMS}}
-            </div>
-            
-            <!-- Summary -->
-            <aside class="order-summary">
-                <h3 style="margin-bottom: 20px; font-family: var(--font-serif); font-size: 1.5rem;">Order Summary</h3>
-                <div class="summary-row">
-                    <span>Subtotal</span>
-                    <span>{{CART_TOTAL}}</span>
-                </div>
-                <div class="summary-row">
-                    <span>Shipping</span>
-                    <span>Free</span>
-                </div>
-                <div class="summary-row">
-                    <span>Taxes</span>
-                    <span>Calculated at checkout</span>
-                </div>
-                <div class="summary-total">
-                    <span>Estimated Total</span>
-                    <span>{{CART_TOTAL}}</span>
-                </div>
-                <a href="/checkout" class="btn-primary" style="width:100%; margin-top:20px;">Proceed to Checkout</a>
-            </aside>
-        </div>
+        {{CART_BODY}}
     </main>
 
     {{FOOTER}}
 </body>
 </html>
+

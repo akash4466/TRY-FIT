@@ -345,7 +345,9 @@ def seed_clothes(cursor):
 
         colors = "Black,White,Navy,Grey,Beige"
 
-        if "Jeans" in category:
+        if "Shirt" in category:
+            colors = "Blue,Navy,White,Black,Grey"
+        elif "Jeans" in category:
             colors = "Blue,Black,Grey"
 
         new_items.append((
@@ -359,7 +361,9 @@ def seed_clothes(cursor):
             rating,
             discount,
             sizes,
-            colors
+            colors,
+            10,
+            True
         ))
 
     cursor.executemany(
@@ -376,11 +380,13 @@ def seed_clothes(cursor):
             rating,
             discount_percent,
             available_sizes,
-            available_colors
+            available_colors,
+            stock,
+            is_available
         )
         VALUES
         (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
         """,
         new_items
@@ -479,7 +485,9 @@ def init_db():
                 rating DECIMAL(3, 1) DEFAULT 4.5,
                 discount_percent INT DEFAULT 0,
                 available_sizes VARCHAR(255) DEFAULT 'S,M,L,XL',
-                available_colors VARCHAR(255) DEFAULT 'Black,White'
+                available_colors VARCHAR(255) DEFAULT 'Black,White',
+                stock INT DEFAULT 10,
+                is_available BOOLEAN DEFAULT TRUE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
         )
@@ -601,6 +609,48 @@ def init_db():
                 col_type_str = str(col_info.get("Type", "")).lower()
                 if "pending" not in col_type_str or "captured" not in col_type_str:
                     cursor.execute(f"ALTER TABLE orders MODIFY COLUMN {col_name} {col_type}")
+
+        # Migration: Ensure stock and is_available columns exist on clothes table
+        clothes_migrations = [
+            ("stock", "INT DEFAULT 10"),
+            ("is_available", "BOOLEAN DEFAULT TRUE")
+        ]
+        for col_name, col_type in clothes_migrations:
+            cursor.execute(f"SHOW COLUMNS FROM clothes LIKE '{col_name}'")
+            col_info = cursor.fetchone()
+            if not col_info:
+                cursor.execute(f"ALTER TABLE clothes ADD COLUMN {col_name} {col_type}")
+
+        # Ensure default stock and is_available values are populated
+        cursor.execute("UPDATE clothes SET stock = 10 WHERE stock IS NULL")
+        cursor.execute("UPDATE clothes SET is_available = TRUE WHERE is_available IS NULL")
+
+        # Color enrichment for accurate attribute searching:
+        # Men's Shirts & Suits: Add Blue to available colors if not present
+        cursor.execute("""
+            UPDATE clothes 
+            SET available_colors = 'Blue,Navy,White,Black,Grey' 
+            WHERE (category LIKE '%Shirt%' OR name LIKE '%Shirt%') 
+              AND available_colors NOT LIKE '%Blue%'
+        """)
+
+        # User-provided shoes collection
+        featured_shoes = [
+            ("Field Care Men Boots With PU Upper", "Men – Shoes & Footwear", 1560.00, 99.00, "/static/images/shoes/field_care_pu_boots.png", "Field Care", "Field Care Men Boots With PU Upper offering rugged durability, shock absorption, and casual streetwear styling.", 4.2, 61, "7,8,9,10,11", "Grey,Black,Red", 15, True),
+            ("Woodland Men High-Top Ankle-Length Boots", "Men – Shoes & Footwear", 3117.00, 120.00, "/static/images/shoes/woodland_hightop_boots.png", "Woodland", "Authentic Woodland High-Top Ankle-Length Boots made for all-terrain adventure, hiking, and premium outdoor luxury.", 4.6, 40, "7,8,9,10,11", "Tan,Camel,Brown", 12, True),
+            ("Mochi Men Round-Toe Lace-Up Boots", "Men – Shoes & Footwear", 2713.00, 110.00, "/static/images/shoes/mochi_laceup_boots.png", "Mochi", "Contemporary Mochi Round-Toe Lace-Up Boots in olive suede finish for sophisticated urban style and everyday comfort.", 4.4, 32, "7,8,9,10,11", "Olive,Green,Khaki", 10, True),
+            ("Liberty Boots With Genuine Leather Upper", "Men – Shoes & Footwear", 2131.00, 105.00, "/static/images/shoes/liberty_leather_boots.png", "Liberty", "Durable Liberty Boots With Genuine Leather Upper engineered for heavy-duty performance, grip, and all-weather resilience.", 3.6, 18, "7,8,9,10,11", "Black", 14, True),
+            ("Red Chief Men High-Top Boots with Lace Fastening", "Men – Shoes & Footwear", 2505.00, 115.00, "/static/images/shoes/red_chief_hightop_boots.png", "Red Chief", "Signature Red Chief Men High-Top Boots with Lace Fastening crafted in rich dark brown leather with reinforced cushioning.", 3.5, 70, "7,8,9,10,11", "Brown,Dark Brown,Chocolate", 18, True)
+        ]
+        for shoe in featured_shoes:
+            cursor.execute("SELECT id FROM clothes WHERE name = %s", (shoe[0],))
+            ex = cursor.fetchone()
+            if not ex:
+                cursor.execute("""
+                    INSERT INTO clothes 
+                    (name, category, price, trial_price, image_url, brand, description, rating, discount_percent, available_sizes, available_colors, stock, is_available)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, shoe)
 
         # Migration: Ensure index on orders(user_id) exists
         cursor.execute("SHOW INDEX FROM orders WHERE Column_name = 'user_id'")

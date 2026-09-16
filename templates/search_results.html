@@ -15,21 +15,7 @@
             <h1 style="font-size: 2.5rem; margin-top: 10px;">"{{SEARCH_QUERY}}"</h1>
         </div>
 
-        <!-- 3D Shuffle Catalog Sort Bar -->
-        <div class="catalog-sort-bar">
-            <div class="catalog-sort-info">
-                <span class="catalog-sort-title">Matched Pieces</span>
-                <span class="sort-3d-badge">3D Interactive</span>
-            </div>
-            <div class="catalog-sort-controls">
-
-                <select class="luxury-sort-dropdown" aria-label="Sort products">
-                    <option value="featured">Sort: Featured</option>
-                    <option value="low-to-high">Price: Low to High</option>
-                    <option value="high-to-low">Price: High to Low</option>
-                </select>
-            </div>
-        </div>
+        {{SORT_BAR}}
 
         <div class="products-grid" id="catalog-container" style="margin-top: 10px;">
             {{CATALOG_GRID}}
