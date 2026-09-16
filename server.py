@@ -320,7 +320,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         finally:
             conn.close()
 
-    def get_header_html(self, user):
+    def get_header_html(self, user, show_back_btn=True):
         cart_count = self.get_cart_count(user)
 
         if user and user['id'] != 'guest':
@@ -345,10 +345,35 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     </a>
             """
 
+        back_btn_html = ""
+        current_path = getattr(self, 'path', '')
+        if show_back_btn and current_path not in ("/", "", "/index", "/index.html"):
+            # Determine safe back URL using Referer header (internal TRY-FIT only)
+            back_url = "/"
+            referer = self.headers.get("Referer") if hasattr(self, 'headers') and self.headers else None
+            host = self.headers.get("Host") if hasattr(self, 'headers') and self.headers else None
+            if referer and host:
+                try:
+                    parsed = urllib.parse.urlparse(referer)
+                    if parsed.scheme in ("http", "https") and parsed.netloc == host:
+                        back_url = parsed.path or "/"
+                except Exception:
+                    pass
+            back_btn_html = f'''<button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){{ window.history.back(); }} else {{ window.location.href='{back_url}'; }}" title="Go Back" aria-label="Go Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; margin-right: 12px; color: #111111; text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; user-select: none; box-sizing: border-box; vertical-align: middle; -webkit-appearance: none; appearance: none;">
+                <span class="nav-back-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF; flex-shrink: 0; transition: all 0.22s ease;">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px; stroke: currentColor; stroke-width: 2.6; fill: none; transition: transform 0.22s ease;">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </span>
+                <span class="nav-back-text" style="line-height: 1; display: inline-block;">Back</span>
+            </button>'''
+
         return f"""
         <header class="main-header">
             <div class="container nav-wrapper">
                 <div class="nav-left">
+                    {back_btn_html}
                     <nav class="nav-menu">
                         <a href="/category?category=all" class="nav-menu-link">All</a>
                         <a href="/category?category=men" class="nav-menu-link">Men</a>
@@ -568,13 +593,17 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         </script>
         """
 
-    def render_template(self, filepath, user=None, **kwargs):
+    def render_template(self, filepath, user=None, show_back_btn=None, **kwargs):
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
 
+            if show_back_btn is None:
+                # Do NOT show back button on Home Page (index.html); show on all other pages
+                show_back_btn = ('index.html' not in filepath and filepath != 'templates/index.html')
+
             # Inject Global Header and Footer
-            content = content.replace('{{HEADER}}', self.get_header_html(user))
+            content = content.replace('{{HEADER}}', self.get_header_html(user, show_back_btn=show_back_btn))
             content = content.replace('{{FOOTER}}', self.get_footer_html())
 
             for k, v in kwargs.items():
