@@ -729,6 +729,14 @@ def init_db():
         conn.close()
 
 
+def expand_catalog_to_1000(target=1000):
+    """
+    Safely expand the catalog to target products without modifying or deleting existing records.
+    """
+    import generate_catalog
+    return generate_catalog.expand_catalog(target)
+
+
 if __name__ == "__main__":
     init_db()
 
