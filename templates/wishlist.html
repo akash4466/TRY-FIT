@@ -3,21 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wishlist | TRY-FIT</title>
+    <title>My Wishlist | TRY-FIT</title>
+    <meta name="description" content="View and manage your TRY-FIT wishlist. Save your favourite outfits and try them at home before you buy.">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .wishlist-page-header {
+            padding: 40px 0 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 40px;
+        }
+        .wishlist-page-header h1 {
+            font-family: var(--font-serif);
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+        }
+        .wishlist-page-header p {
+            color: var(--muted);
+            font-size: 1rem;
+        }
+        .wishlist-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: var(--white);
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            margin-left: 12px;
+            vertical-align: middle;
+        }
+    </style>
 </head>
 <body>
     {{HEADER}}
-    
+
+    {{MESSAGE_ALERT}}
+
     <main class="container section-padding">
-        <h1 style="font-family: var(--font-serif); font-size: 2.5rem; margin-bottom: 30px;">Your Wishlist</h1>
-        
-        {{MESSAGE_ALERT}}
-        
-        <div class="products-grid">
+        <div class="wishlist-page-header">
+            <h1>
+                My Wishlist
+                {{WISHLIST_COUNT_BADGE}}
+            </h1>
+            <p>Your saved favourites — try them at home before you decide.</p>
+        </div>
+
+        <div class="products-grid" id="wishlist-grid">
             {{WISHLIST_ITEMS}}
         </div>
     </main>
+
+    <script>
+        // toggleWishlist is defined globally in the footer script
+        // but we also need card removal animation on the wishlist page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Override toggleWishlist for the wishlist page: remove card from DOM on remove
+            const originalToggle = window.toggleWishlist;
+            window.toggleWishlistPage = function(e, clothId, btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const card = btn.closest('[id^="wishlist-card-"]');
+                const isWishlisted = btn.dataset.wishlisted === 'true';
+                if (isWishlisted) {
+                    // Remove from wishlist and animate card out
+                    fetch('/api/wishlist/remove', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cloth_id: String(clothId) })
+                    }).then(res => res.json()).then(data => {
+                        if (data.success) {
+                            if (card) {
+                                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                                card.style.opacity = '0';
+                                card.style.transform = 'scale(0.9)';
+                                setTimeout(() => {
+                                    card.remove();
+                                    // Update badge
+                                    const badge = document.querySelector('.wishlist-count-badge');
+                                    if (badge) {
+                                        const newCount = data.wishlist_count || 0;
+                                        badge.textContent = newCount + ' item' + (newCount !== 1 ? 's' : '');
+                                        if (newCount === 0) badge.style.display = 'none';
+                                    }
+                                    // Update nav badge
+                                    const navBadge = document.getElementById('wishlist-nav-count');
+                                    if (navBadge && data.wishlist_count !== undefined) {
+                                        navBadge.textContent = data.wishlist_count;
+                                        navBadge.style.display = data.wishlist_count > 0 ? '' : 'none';
+                                    }
+                                    // Check if grid is empty
+                                    const grid = document.getElementById('wishlist-grid');
+                                    if (grid && grid.querySelectorAll('[id^="wishlist-card-"]').length === 0) {
+                                        grid.innerHTML = "<div class='empty-state' style='grid-column:1/-1; text-align:center; padding:60px 20px;'><div style='font-size:4rem; margin-bottom:16px;'>♡</div><h3 style='font-size:1.8rem; margin-bottom:12px;'>Your Wishlist is empty</h3><p style='color:var(--muted); margin-bottom:24px;'>Save the pieces you love and find them here.</p><a href='/category?category=all' class='btn-primary' style='display:inline-block; padding:14px 40px;'>Discover Fashion</a></div>";
+                                    }
+                                }, 300);
+                            }
+                            if (typeof showToast === 'function') showToast('Removed from Wishlist');
+                        }
+                    }).catch(() => {
+                        if (typeof showToast === 'function') showToast('Removed from Wishlist');
+                    });
+                }
+            };
+
+            // Bind wishlist page toggle to all wishlist-page cards
+            document.querySelectorAll('[id^="wishlist-card-"] .wishlist-btn').forEach(btn => {
+                btn.onclick = function(e) {
+                    window.toggleWishlistPage(e, btn.dataset.clothId, btn);
+                };
+            });
+        });
+    </script>
 
     {{FOOTER}}
 </body>
