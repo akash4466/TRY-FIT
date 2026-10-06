@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Vendor Products</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { background: #F5F3EF; }
+        :root { --sidebar-width: 260px; }
+        .vd-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-width); background: #111111; color: #fff; display: flex; flex-direction: column; z-index: 100; overflow-y: auto; transition: transform 0.3s ease; }
+        .vd-sidebar-brand { padding: 28px 28px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .vd-sidebar-brand .logo { font-size: 1.5rem; color: #fff; display: block; margin-bottom: 4px; }
+        .vd-sidebar-brand .portal-label { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+        .vd-nav { padding: 20px 0; flex: 1; }
+        .vd-nav-item { display: flex; align-items: center; gap: 12px; padding: 13px 28px; color: rgba(255,255,255,0.65); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: all 0.2s; border-left: 3px solid transparent; }
+        .vd-nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .vd-nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; }
+        .vd-nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .vd-nav-section { padding: 16px 28px 6px; font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); font-weight: 700; }
+        .vd-sidebar-footer { padding: 20px 28px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .vd-main { margin-left: var(--sidebar-width); min-height: 100vh; }
+        .vd-topbar { background: #fff; border-bottom: 1px solid #E5E2DC; padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .vd-topbar h1 { font-size: 1.3rem; font-weight: 700; color: #111111; }
+        .vd-content { padding: 40px; }
+        .vd-table { width: 100%; border-collapse: collapse; }
+        .vd-table th { background: #F5F3EF; padding: 12px 16px; text-align: left; font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; color: #777777; border-bottom: 1px solid #E5E2DC; }
+        .vd-table td { padding: 14px 16px; border-bottom: 1px solid #F5F3EF; font-size: 0.88rem; color: #111111; vertical-align: middle; }
+        .vd-table tr:last-child td { border-bottom: none; }
+        .vd-table tr:hover td { background: #fafaf9; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: rgba(74,222,128,0.15); color: #16a34a; }
+        .badge-inactive { background: rgba(156,163,175,0.15); color: #6b7280; }
+        .vd-menu-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+        .vd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+        .prod-img { width: 52px; height: 64px; object-fit: cover; border-radius: 6px; }
+        @media (max-width: 900px) { .vd-sidebar { transform: translateX(-100%); } .vd-sidebar.open { transform: translateX(0); } .vd-main { margin-left: 0; } .vd-menu-btn { display: block; } .vd-content { padding: 20px; } .vd-topbar { padding: 14px 20px; } .vd-overlay.show { display: block; } }
+    </style>
+</head>
+<body>
+<div class="vd-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<aside class="vd-sidebar" id="sidebar">
+    <div class="vd-sidebar-brand">
+        <a href="/" class="logo">TRY-FIT</a>
+        <span class="portal-label">Vendor Portal</span>
+    </div>
+    <nav class="vd-nav">
+        <div class="vd-nav-section">Main</div>
+        <a href="/vendor/dashboard" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>Overview</a>
+        <a href="/vendor/products" class="vd-nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>Products</a>
+        <a href="/vendor/orders" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>Orders</a>
+        <div class="vd-nav-section">Business</div>
+        <a href="/vendor/profile" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path></svg>Business Profile</a>
+        <a href="/vendor/settings" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle></svg>Settings</a>
+    </nav>
+    <div class="vd-sidebar-footer">
+        <a href="/" style="display:block; text-align:center; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 10px; text-decoration: none;">← Back to Shop</a>
+        <form method="POST" action="/api/logout"><button type="submit" style="width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">Sign Out</button></form>
+    </div>
+</aside>
+
+<div class="vd-main">
+    <div class="vd-topbar">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <button class="vd-menu-btn" onclick="toggleSidebar()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+            <h1>My Products ({{PRODUCT_COUNT}})</h1>
+        </div>
+        <a href="/vendor/products/add" class="btn-primary" style="padding: 10px 20px; font-size: 0.85rem; text-decoration: none; border-radius: 8px;">+ Add Product</a>
+    </div>
+
+    <div class="vd-content">
+        {{MESSAGE_ALERT}}
+        <div style="background: #fff; border: 1px solid #E5E2DC; border-radius: 14px; overflow: hidden;">
+            {{PRODUCTS_TABLE}}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('show');
+}
+</script>
+</body>
+</html>

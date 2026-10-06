@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Business Profile</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { background: #F5F3EF; }
+        :root { --sidebar-width: 260px; }
+        .vd-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-width); background: #111111; color: #fff; display: flex; flex-direction: column; z-index: 100; overflow-y: auto; transition: transform 0.3s ease; }
+        .vd-sidebar-brand { padding: 28px 28px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .vd-sidebar-brand .logo { font-size: 1.5rem; color: #fff; display: block; margin-bottom: 4px; }
+        .vd-sidebar-brand .portal-label { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+        .vd-nav { padding: 20px 0; flex: 1; }
+        .vd-nav-item { display: flex; align-items: center; gap: 12px; padding: 13px 28px; color: rgba(255,255,255,0.65); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: all 0.2s; border-left: 3px solid transparent; }
+        .vd-nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .vd-nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; }
+        .vd-nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .vd-nav-section { padding: 16px 28px 6px; font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); font-weight: 700; }
+        .vd-sidebar-footer { padding: 20px 28px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .vd-main { margin-left: var(--sidebar-width); min-height: 100vh; }
+        .vd-topbar { background: #fff; border-bottom: 1px solid #E5E2DC; padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .vd-topbar h1 { font-size: 1.3rem; font-weight: 700; color: #111111; }
+        .vd-content { padding: 40px; max-width: 860px; }
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+        .section-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0 20px; }
+        .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: #E5E2DC; }
+        .section-divider span { font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase; color: #777777; font-weight: 600; }
+        .loc-btn { display: inline-flex; align-items: center; gap: 8px; background: #111111; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-bottom: 14px; }
+        .loc-btn:hover { background: #333; }
+        .loc-status { font-size: 0.82rem; padding: 8px 14px; border-radius: 8px; margin-bottom: 12px; display: none; }
+        .loc-status.success { background: rgba(74,222,128,0.1); color: #16a34a; border: 1px solid rgba(74,222,128,0.3); display: block; }
+        .loc-status.error { background: rgba(239,68,68,0.08); color: #dc2626; border: 1px solid rgba(239,68,68,0.2); display: block; }
+        .vd-menu-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+        .vd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+        @media (max-width: 900px) { .vd-sidebar { transform: translateX(-100%); } .vd-sidebar.open { transform: translateX(0); } .vd-main { margin-left: 0; } .vd-menu-btn { display: block; } .vd-content { padding: 20px; } .vd-topbar { padding: 14px 20px; } .vd-overlay.show { display: block; } .form-grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="vd-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<aside class="vd-sidebar" id="sidebar">
+    <div class="vd-sidebar-brand">
+        <a href="/" class="logo">TRY-FIT</a>
+        <span class="portal-label">Vendor Portal</span>
+    </div>
+    <nav class="vd-nav">
+        <div class="vd-nav-section">Main</div>
+        <a href="/vendor/dashboard" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>Overview</a>
+        <a href="/vendor/products" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>Products</a>
+        <a href="/vendor/orders" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>Orders</a>
+        <div class="vd-nav-section">Business</div>
+        <a href="/vendor/profile" class="vd-nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path></svg>Business Profile</a>
+        <a href="/vendor/settings" class="vd-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle></svg>Settings</a>
+    </nav>
+    <div class="vd-sidebar-footer">
+        <a href="/" style="display:block; text-align:center; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 10px; text-decoration: none;">← Back to Shop</a>
+        <form method="POST" action="/api/logout"><button type="submit" style="width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">Sign Out</button></form>
+    </div>
+</aside>
+
+<div class="vd-main">
+    <div class="vd-topbar">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <button class="vd-menu-btn" onclick="toggleSidebar()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+            <h1>Business Profile</h1>
+        </div>
+    </div>
+
+    <div class="vd-content">
+        {{MESSAGE_ALERT}}
+        {{ERROR_ALERT}}
+
+        <div style="background: #fff; border: 1px solid #E5E2DC; border-radius: 14px; padding: 40px;">
+            <form method="POST" action="/api/vendor/profile/update" autocomplete="off" id="profileForm">
+
+                <div class="section-divider"><span>Business Information</span></div>
+
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Name <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="business_name" class="form-control" required value="{{BUSINESS_NAME}}">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Category <span style="color:#e11d48;">*</span></label>
+                        <select name="business_category" class="form-control" required>
+                            <option value="Men's Clothing" {{CAT_MENS}}>Men's Clothing</option>
+                            <option value="Women's Clothing" {{CAT_WOMENS}}>Women's Clothing</option>
+                            <option value="Kids Clothing" {{CAT_KIDS}}>Kids Clothing</option>
+                            <option value="Fashion Store" {{CAT_FASHION}}>Fashion Store</option>
+                            <option value="Clothing Manufacturer" {{CAT_MFR}}>Clothing Manufacturer</option>
+                            <option value="Boutique" {{CAT_BOUTIQUE}}>Boutique</option>
+                            <option value="Fashion Brand" {{CAT_BRAND}}>Fashion Brand</option>
+                            <option value="Accessories" {{CAT_ACC}}>Accessories &amp; Footwear</option>
+                            <option value="Ethnic Wear" {{CAT_ETHNIC}}>Ethnic Wear</option>
+                            <option value="Other" {{CAT_OTHER}}>Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Business Description <span style="color:#e11d48;">*</span></label>
+                    <textarea name="description" class="form-control" required rows="3" style="resize:vertical;">{{DESCRIPTION}}</textarea>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Phone <span style="color:#e11d48;">*</span></label>
+                        <input type="tel" name="business_phone" class="form-control" required value="{{BUSINESS_PHONE}}">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Email</label>
+                        <input type="email" name="business_email" class="form-control" value="{{BUSINESS_EMAIL}}">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Website</label>
+                    <input type="url" name="website" class="form-control" value="{{WEBSITE}}" placeholder="https://yourwebsite.com">
+                </div>
+
+                <!-- Hours -->
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Opening Hours</label>
+                        <input type="time" name="opening_hours" class="form-control" value="{{OPENING_HOURS}}">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Closing Hours</label>
+                        <input type="time" name="closing_hours" class="form-control" value="{{CLOSING_HOURS}}">
+                    </div>
+                </div>
+
+                <!-- Location -->
+                <div class="section-divider"><span>Business Location</span></div>
+
+                <div id="locStatus" class="loc-status"></div>
+                <button type="button" class="loc-btn" onclick="getMyLocation()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path></svg>
+                    Update My Location
+                </button>
+
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label">Business Address <span style="color:#e11d48;">*</span></label>
+                    <input type="text" name="address" id="address" class="form-control" required value="{{ADDRESS}}">
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label class="form-label">City <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="city" id="city" class="form-control" required value="{{CITY}}">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label class="form-label">State <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="state" id="state" class="form-control" required value="{{STATE}}">
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label class="form-label">Pincode <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="pincode" id="pincode" class="form-control" required value="{{PINCODE}}" maxlength="6">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group" style="margin-bottom: 18px;">
+                            <label class="form-label">Latitude</label>
+                            <input type="number" name="latitude" id="latitude" class="form-control" step="any" value="{{LATITUDE}}" style="background:#F5F3EF;" readonly>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 18px;">
+                            <label class="form-label">Longitude</label>
+                            <input type="number" name="longitude" id="longitude" class="form-control" step="any" value="{{LONGITUDE}}" style="background:#F5F3EF;" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-top: 10px;">
+                    <button type="submit" class="btn-primary" style="padding: 14px 40px; font-size: 1rem;" id="saveBtn">Save Changes</button>
+                    <a href="/vendor/dashboard" class="btn-secondary" style="padding: 14px 32px; font-size: 1rem; text-decoration: none; display: inline-flex; align-items: center;">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('show');
+}
+function getMyLocation() {
+    var status = document.getElementById('locStatus');
+    if (!navigator.geolocation) { status.className = 'loc-status error'; status.textContent = 'Geolocation not supported. Enter manually.'; return; }
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            document.getElementById('latitude').value = pos.coords.latitude.toFixed(8);
+            document.getElementById('longitude').value = pos.coords.longitude.toFixed(8);
+            status.className = 'loc-status success';
+            status.textContent = '✓ Location updated: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6);
+        },
+        function(err) {
+            status.className = 'loc-status error';
+            status.textContent = 'Location permission denied. Please enter address manually.';
+        }
+    );
+}
+document.getElementById('profileForm').addEventListener('submit', function() {
+    var btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+});
+</script>
+</body>
+</html>

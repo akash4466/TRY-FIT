@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Vendor Registration</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .vendor-hero {
+            background: linear-gradient(135deg, #111111 0%, #1a1a2e 100%);
+            color: #fff;
+            padding: 24px 40px;
+            border-radius: 0 0 24px 24px;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .vendor-hero .logo-tag {
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #E5E2DC;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .vendor-hero h1 {
+            font-size: 2rem;
+            font-family: var(--font-serif);
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .vendor-hero p {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+        .auth-container.vendor-card {
+            border-top: 4px solid #111111;
+            max-width: 520px;
+        }
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+        .step-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #E5E2DC;
+            transition: background 0.3s;
+        }
+        .step-dot.active {
+            background: #111111;
+            transform: scale(1.3);
+        }
+        .step-dot.done {
+            background: #4ade80;
+        }
+        .vendor-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #F5F3EF;
+            border: 1px solid #E5E2DC;
+            border-radius: 9999px;
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #111111;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh; background: var(--background);">
+
+    <!-- Minimal header -->
+    <header class="main-header" style="position: static; border-bottom: none;">
+        <div class="container nav-wrapper">
+            <div class="nav-left">
+                <button type="button" class="nav-back-btn" onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/'; }" title="Go Back" aria-label="Back" style="all: unset; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 8px; color: #111111; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; background: #FFFFFF; border: 1px solid #E5E2DC; border-radius: 9999px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.22s ease;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #111111; color: #FFFFFF;">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    </span>
+                    <span>Back</span>
+                </button>
+            </div>
+            <div class="nav-center">
+                <a href="/" class="logo" style="font-size: 2rem;">TRY-FIT</a>
+            </div>
+            <div class="nav-right"></div>
+        </div>
+    </header>
+
+    <main class="container" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px;">
+
+        <div class="auth-container vendor-card" style="margin: 0; width: 100%; max-width: 520px; padding: 50px 46px;">
+
+            {{ERROR_ALERT}}
+
+            <div style="text-align: center; margin-bottom: 32px;">
+                <div class="vendor-badge">
+                    <span>🏪</span>
+                    <span>Vendor Registration</span>
+                </div>
+                <h2 style="font-size: 1.9rem; margin-bottom: 10px; font-family: var(--font-serif);">Create Vendor Account</h2>
+                <p style="color: var(--muted); font-size: 0.92rem; line-height: 1.6;">Sell your clothing through TRY-FIT's premium marketplace</p>
+            </div>
+
+            <div class="step-indicator">
+                <div class="step-dot active"></div>
+                <div style="height: 1px; width: 30px; background: #E5E2DC;"></div>
+                <div class="step-dot"></div>
+                <div style="height: 1px; width: 30px; background: #E5E2DC;"></div>
+                <div class="step-dot"></div>
+            </div>
+            <p style="text-align:center; color: var(--muted); font-size: 0.78rem; margin-bottom: 28px; letter-spacing: 1px; text-transform: uppercase;">Step 1 of 3 — Account Details</p>
+
+            <form method="POST" action="/api/vendor/send-otp" autocomplete="off" id="vendorRegForm">
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label">Owner / Contact Name <span style="color:#e11d48;">*</span></label>
+                    <input type="text" name="owner_name" id="owner_name" class="form-control" required placeholder="Your full name" value="{{OWNER_NAME}}" autocomplete="name">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label">Business Email <span style="color:#e11d48;">*</span></label>
+                    <input type="email" name="email" id="vendor_email" class="form-control" required placeholder="business@example.com" value="{{EMAIL}}" autocomplete="email">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 28px;">
+                    <label class="form-label">Mobile Number <span style="color: var(--muted); font-size: 0.8rem;">(optional)</span></label>
+                    <input type="tel" name="mobile" id="vendor_mobile" class="form-control" placeholder="+91 98765 43210" value="{{MOBILE}}" autocomplete="tel">
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; height: 52px; font-size: 1rem; letter-spacing: 1.5px;" id="sendOtpBtn">
+                    Send Verification Code
+                </button>
+            </form>
+
+            <div style="text-align: center; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border);">
+                <p style="font-size: 0.85rem; color: var(--muted);">Already have a vendor account? <a href="/vendor/login" style="color: #111111; font-weight: 600; text-decoration: underline;">Sign In</a></p>
+                <p style="font-size: 0.85rem; color: var(--muted); margin-top: 8px;">Want to shop instead? <a href="/account" style="color: #111111; font-weight: 600; text-decoration: underline;">User Account</a></p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('vendorRegForm').addEventListener('submit', function() {
+            var btn = document.getElementById('sendOtpBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+        });
+    </script>
+</body>
+</html>

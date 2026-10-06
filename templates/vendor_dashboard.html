@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Vendor Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        :root { --sidebar-width: 260px; }
+        body { background: #F5F3EF; }
+
+        /* Sidebar */
+        .vd-sidebar {
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            width: var(--sidebar-width);
+            background: #111111;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            z-index: 100;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        .vd-sidebar-brand {
+            padding: 28px 28px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .vd-sidebar-brand .logo {
+            font-size: 1.5rem;
+            color: #fff;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .vd-sidebar-brand .portal-label {
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+        }
+        .vd-nav {
+            padding: 20px 0;
+            flex: 1;
+        }
+        .vd-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 28px;
+            color: rgba(255,255,255,0.65);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .vd-nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .vd-nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; }
+        .vd-nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .vd-nav-section {
+            padding: 16px 28px 6px;
+            font-size: 0.68rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.3);
+            font-weight: 700;
+        }
+        .vd-sidebar-footer {
+            padding: 20px 28px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .vd-vendor-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .vd-avatar {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; font-weight: 700; color: #fff;
+            flex-shrink: 0;
+        }
+        .vd-vendor-name { font-size: 0.88rem; font-weight: 600; color: #fff; }
+        .vd-vendor-status {
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .vd-vendor-status.pending { background: rgba(251,191,36,0.2); color: #fbbf24; }
+        .vd-vendor-status.approved { background: rgba(74,222,128,0.2); color: #4ade80; }
+        .vd-vendor-status.rejected { background: rgba(239,68,68,0.2); color: #f87171; }
+        .vd-vendor-status.suspended { background: rgba(156,163,175,0.2); color: #9ca3af; }
+
+        /* Main content */
+        .vd-main {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .vd-topbar {
+            background: #fff;
+            border-bottom: 1px solid #E5E2DC;
+            padding: 16px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .vd-topbar h1 { font-size: 1.3rem; font-weight: 700; color: #111111; }
+        .vd-content { padding: 40px; flex: 1; }
+
+        /* Stats */
+        .vd-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 36px; }
+        .vd-stat-card {
+            background: #fff;
+            border: 1px solid #E5E2DC;
+            border-radius: 14px;
+            padding: 24px;
+            transition: box-shadow 0.2s;
+        }
+        .vd-stat-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .vd-stat-label { font-size: 0.78rem; letter-spacing: 1.5px; text-transform: uppercase; color: #777777; margin-bottom: 10px; }
+        .vd-stat-value { font-size: 2.2rem; font-weight: 800; color: #111111; font-family: var(--font-serif); }
+        .vd-stat-sub { font-size: 0.8rem; color: #777777; margin-top: 4px; }
+
+        /* Section cards */
+        .vd-card {
+            background: #fff;
+            border: 1px solid #E5E2DC;
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 28px;
+        }
+        .vd-card-header {
+            padding: 22px 28px;
+            border-bottom: 1px solid #E5E2DC;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .vd-card-title { font-size: 1rem; font-weight: 700; color: #111111; }
+        .vd-card-body { padding: 24px 28px; }
+
+        /* Status banner */
+        .vd-status-banner {
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .vd-status-banner.pending { background: #fffbeb; border: 1px solid #fde68a; }
+        .vd-status-banner.approved { background: #f0fdf4; border: 1px solid #bbf7d0; }
+        .vd-status-banner.rejected { background: #fef2f2; border: 1px solid #fecaca; }
+        .vd-status-banner.suspended { background: #f9fafb; border: 1px solid #e5e7eb; }
+
+        /* Table */
+        .vd-table { width: 100%; border-collapse: collapse; }
+        .vd-table th { background: #F5F3EF; padding: 12px 16px; text-align: left; font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; color: #777777; border-bottom: 1px solid #E5E2DC; }
+        .vd-table td { padding: 14px 16px; border-bottom: 1px solid #F5F3EF; font-size: 0.88rem; color: #111111; vertical-align: middle; }
+        .vd-table tr:last-child td { border-bottom: none; }
+        .vd-table tr:hover td { background: #F5F3EF; }
+
+        /* Product badge */
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: rgba(74,222,128,0.15); color: #16a34a; }
+        .badge-inactive { background: rgba(156,163,175,0.15); color: #6b7280; }
+        .badge-pending { background: rgba(251,191,36,0.15); color: #d97706; }
+
+        /* Mobile hamburger */
+        .vd-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+        }
+        .vd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+
+        @media (max-width: 900px) {
+            .vd-sidebar { transform: translateX(-100%); }
+            .vd-sidebar.open { transform: translateX(0); }
+            .vd-main { margin-left: 0; }
+            .vd-menu-btn { display: block; }
+            .vd-content { padding: 20px; }
+            .vd-topbar { padding: 14px 20px; }
+            .vd-overlay.show { display: block; }
+        }
+        @media (max-width: 600px) {
+            .vd-stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="vd-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<aside class="vd-sidebar" id="sidebar">
+    <div class="vd-sidebar-brand">
+        <a href="/" class="logo">TRY-FIT</a>
+        <span class="portal-label">Vendor Portal</span>
+    </div>
+
+    <nav class="vd-nav">
+        <div class="vd-nav-section">Main</div>
+        <a href="/vendor/dashboard" class="vd-nav-item active" id="nav-overview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Overview
+        </a>
+        <a href="/vendor/products" class="vd-nav-item" id="nav-products">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            Products
+        </a>
+        <a href="/vendor/orders" class="vd-nav-item" id="nav-orders">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            Orders
+        </a>
+
+        <div class="vd-nav-section">Business</div>
+        <a href="/vendor/profile" class="vd-nav-item" id="nav-profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path></svg>
+            Business Profile
+        </a>
+        <a href="/vendor/settings" class="vd-nav-item" id="nav-settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+        </a>
+    </nav>
+
+    <div class="vd-sidebar-footer">
+        <div class="vd-vendor-info">
+            <div class="vd-avatar">{{VENDOR_INITIAL}}</div>
+            <div>
+                <div class="vd-vendor-name">{{BUSINESS_NAME}}</div>
+                <span class="vd-vendor-status {{VENDOR_STATUS}}">{{VENDOR_STATUS_LABEL}}</span>
+            </div>
+        </div>
+        <a href="/" style="display:block; text-align:center; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 10px; text-decoration: none;">← Back to Shop</a>
+        <form method="POST" action="/api/logout">
+            <button type="submit" style="width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s;">
+                Sign Out
+            </button>
+        </form>
+    </div>
+</aside>
+
+<!-- Main -->
+<div class="vd-main">
+    <div class="vd-topbar">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <button class="vd-menu-btn" onclick="toggleSidebar()" aria-label="Menu">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <h1>{{PAGE_TITLE}}</h1>
+        </div>
+        <div style="display:flex; align-items:center; gap: 12px;">
+            <a href="/vendor/products/add" class="btn-primary" style="padding: 10px 20px; font-size: 0.85rem; text-decoration: none; border-radius: 8px;">+ Add Product</a>
+        </div>
+    </div>
+
+    <div class="vd-content">
+        {{MESSAGE_ALERT}}
+
+        <!-- Status Banner -->
+        {{STATUS_BANNER}}
+
+        <!-- Stats -->
+        <div class="vd-stats-grid">
+            <div class="vd-stat-card">
+                <div class="vd-stat-label">Total Products</div>
+                <div class="vd-stat-value">{{TOTAL_PRODUCTS}}</div>
+                <div class="vd-stat-sub">In your catalog</div>
+            </div>
+            <div class="vd-stat-card">
+                <div class="vd-stat-label">Active Products</div>
+                <div class="vd-stat-value">{{ACTIVE_PRODUCTS}}</div>
+                <div class="vd-stat-sub">Available for purchase</div>
+            </div>
+            <div class="vd-stat-card">
+                <div class="vd-stat-label">Total Orders</div>
+                <div class="vd-stat-value">{{TOTAL_ORDERS}}</div>
+                <div class="vd-stat-sub">Lifetime orders</div>
+            </div>
+            <div class="vd-stat-card">
+                <div class="vd-stat-label">Business City</div>
+                <div class="vd-stat-value" style="font-size: 1.4rem;">{{BUSINESS_CITY}}</div>
+                <div class="vd-stat-sub">{{BUSINESS_STATE}}</div>
+            </div>
+        </div>
+
+        <!-- Business Info Card -->
+        <div class="vd-card">
+            <div class="vd-card-header">
+                <span class="vd-card-title">Business Overview</span>
+                <a href="/vendor/profile" style="font-size: 0.85rem; color: #111111; text-decoration: underline;">Edit Profile</a>
+            </div>
+            <div class="vd-card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div>
+                        <div style="font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; color: #777777; margin-bottom: 4px;">Business Name</div>
+                        <div style="font-weight: 600;">{{BUSINESS_NAME}}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; color: #777777; margin-bottom: 4px;">Category</div>
+                        <div style="font-weight: 600;">{{BUSINESS_CATEGORY}}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; color: #777777; margin-bottom: 4px;">Phone</div>
+                        <div style="font-weight: 600;">{{BUSINESS_PHONE}}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; color: #777777; margin-bottom: 4px;">Location</div>
+                        <div style="font-weight: 600;">{{BUSINESS_CITY}}, {{BUSINESS_STATE}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Products -->
+        <div class="vd-card">
+            <div class="vd-card-header">
+                <span class="vd-card-title">Recent Products</span>
+                <a href="/vendor/products" style="font-size: 0.85rem; color: #111111; text-decoration: underline;">View All</a>
+            </div>
+            <div class="vd-card-body" style="padding: 0;">
+                {{RECENT_PRODUCTS}}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function toggleSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+}
+
+// Highlight active nav
+var path = window.location.pathname;
+document.querySelectorAll('.vd-nav-item').forEach(function(a) {
+    a.classList.remove('active');
+    if (a.getAttribute('href') === path) a.classList.add('active');
+});
+</script>
+
+</body>
+</html>

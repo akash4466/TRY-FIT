@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Add Product</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { background: #F5F3EF; }
+        :root { --sidebar-width: 260px; }
+        .vd-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-width); background: #111111; color: #fff; display: flex; flex-direction: column; z-index: 100; overflow-y: auto; transition: transform 0.3s ease; }
+        .vd-sidebar-brand { padding: 28px 28px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .vd-sidebar-brand .logo { font-size: 1.5rem; color: #fff; display: block; margin-bottom: 4px; }
+        .vd-sidebar-brand .portal-label { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+        .vd-nav { padding: 20px 0; flex: 1; }
+        .vd-nav-item { display: flex; align-items: center; gap: 12px; padding: 13px 28px; color: rgba(255,255,255,0.65); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: all 0.2s; border-left: 3px solid transparent; }
+        .vd-nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .vd-nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; }
+        .vd-nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .vd-nav-section { padding: 16px 28px 6px; font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); font-weight: 700; }
+        .vd-sidebar-footer { padding: 20px 28px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .vd-main { margin-left: var(--sidebar-width); min-height: 100vh; }
+        .vd-topbar { background: #fff; border-bottom: 1px solid #E5E2DC; padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .vd-topbar h1 { font-size: 1.3rem; font-weight: 700; color: #111111; }
+        .vd-content { padding: 40px; }
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+        .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 20px; }
+        .section-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0 20px; }
+        .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: #E5E2DC; }
+        .section-divider span { font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase; color: #777777; font-weight: 600; }
+        .vd-menu-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+        .vd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+        @media (max-width: 900px) {
+            .vd-sidebar { transform: translateX(-100%); } .vd-sidebar.open { transform: translateX(0); }
+            .vd-main { margin-left: 0; } .vd-menu-btn { display: block; }
+            .vd-content { padding: 20px; } .vd-topbar { padding: 14px 20px; }
+            .vd-overlay.show { display: block; } .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="vd-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<aside class="vd-sidebar" id="sidebar">
+    <div class="vd-sidebar-brand">
+        <a href="/" class="logo">TRY-FIT</a>
+        <span class="portal-label">Vendor Portal</span>
+    </div>
+    <nav class="vd-nav">
+        <div class="vd-nav-section">Main</div>
+        <a href="/vendor/dashboard" class="vd-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Overview
+        </a>
+        <a href="/vendor/products" class="vd-nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            Products
+        </a>
+        <a href="/vendor/orders" class="vd-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            Orders
+        </a>
+        <div class="vd-nav-section">Business</div>
+        <a href="/vendor/profile" class="vd-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path></svg>
+            Business Profile
+        </a>
+        <a href="/vendor/settings" class="vd-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+        </a>
+    </nav>
+    <div class="vd-sidebar-footer">
+        <a href="/" style="display:block; text-align:center; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 10px; text-decoration: none;">← Back to Shop</a>
+        <form method="POST" action="/api/logout">
+            <button type="submit" style="width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">Sign Out</button>
+        </form>
+    </div>
+</aside>
+
+<div class="vd-main">
+    <div class="vd-topbar">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <button class="vd-menu-btn" onclick="toggleSidebar()">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <h1>Add New Product</h1>
+        </div>
+        <a href="/vendor/products" style="font-size: 0.85rem; color: #777777; text-decoration: underline;">← Back to Products</a>
+    </div>
+
+    <div class="vd-content">
+        {{ERROR_ALERT}}
+
+        <div style="background: #fff; border: 1px solid #E5E2DC; border-radius: 14px; padding: 40px;">
+            <form method="POST" action="/api/vendor/products/add" autocomplete="off" id="addProductForm">
+
+                <!-- Basic Info -->
+                <div class="section-divider"><span>Basic Information</span></div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Product Name <span style="color:#e11d48;">*</span></label>
+                    <input type="text" name="name" class="form-control" required placeholder="e.g. Premium Cotton Slim Fit Shirt">
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Category <span style="color:#e11d48;">*</span></label>
+                        <select name="category" class="form-control" required>
+                            <option value="">Select category...</option>
+                            <option value="Men – Shirts &amp; Suits">Men – Shirts &amp; Suits</option>
+                            <option value="Men – Jackets &amp; Hoodies">Men – Jackets &amp; Hoodies</option>
+                            <option value="Men – Jeans &amp; Trousers">Men – Jeans &amp; Trousers</option>
+                            <option value="Men – Shoes &amp; Footwear">Men – Shoes &amp; Footwear</option>
+                            <option value="Women – Dresses &amp; Western">Women – Dresses &amp; Western</option>
+                            <option value="Women – Footwear &amp; Handbags">Women – Footwear &amp; Handbags</option>
+                            <option value="Ethnic Wear">Ethnic Wear</option>
+                            <option value="Kids Clothing">Kids Clothing</option>
+                            <option value="Accessories">Accessories</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Brand</label>
+                        <input type="text" name="brand" class="form-control" placeholder="Your brand name">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Product Description <span style="color:#e11d48;">*</span></label>
+                    <textarea name="description" class="form-control" required rows="3" placeholder="Describe the product, materials, and fit..." style="resize:vertical;"></textarea>
+                </div>
+
+                <!-- Pricing -->
+                <div class="section-divider"><span>Pricing</span></div>
+                <div class="form-grid-3">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Price (₹) <span style="color:#e11d48;">*</span></label>
+                        <input type="number" name="price" class="form-control" required min="1" step="0.01" placeholder="2999">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Trial Price (₹) <span style="color:#e11d48;">*</span></label>
+                        <input type="number" name="trial_price" class="form-control" required min="1" step="0.01" placeholder="99">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Discount %</label>
+                        <input type="number" name="discount_percent" class="form-control" min="0" max="90" value="0" placeholder="0">
+                    </div>
+                </div>
+
+                <!-- Inventory -->
+                <div class="section-divider"><span>Inventory &amp; Variants</span></div>
+                <div class="form-grid-2">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Stock Quantity <span style="color:#e11d48;">*</span></label>
+                        <input type="number" name="stock" class="form-control" required min="0" value="10" placeholder="10">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Available Sizes</label>
+                        <input type="text" name="available_sizes" class="form-control" value="S,M,L,XL" placeholder="S,M,L,XL or 7,8,9,10">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Available Colors</label>
+                    <input type="text" name="available_colors" class="form-control" value="Black,White,Navy" placeholder="Black,White,Navy,Grey">
+                </div>
+
+                <!-- Product Details -->
+                <div class="section-divider"><span>Product Details</span></div>
+                <div class="form-grid-3">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Material</label>
+                        <input type="text" name="material" class="form-control" placeholder="100% Cotton">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="Unisex">Unisex</option>
+                            <option value="Men">Men</option>
+                            <option value="Women">Women</option>
+                            <option value="Kids">Kids</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Image URL</label>
+                        <input type="url" name="image_url" class="form-control" placeholder="https://...">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 28px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" name="try_before_buy" value="1" checked style="width: 18px; height: 18px; cursor: pointer;">
+                        <span style="font-size: 0.9rem; font-weight: 500;">Available for <strong>Try Before You Buy</strong></span>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 16px;">
+                    <button type="submit" class="btn-primary" style="padding: 14px 40px; font-size: 1rem;" id="addBtn">
+                        Add Product
+                    </button>
+                    <a href="/vendor/products" class="btn-secondary" style="padding: 14px 32px; font-size: 1rem; text-decoration: none; display: inline-flex; align-items: center;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('show');
+}
+document.getElementById('addProductForm').addEventListener('submit', function() {
+    var btn = document.getElementById('addBtn');
+    btn.disabled = true; btn.textContent = 'Adding...';
+});
+</script>
+</body>
+</html>

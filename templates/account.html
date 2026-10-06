@@ -5,43 +5,253 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRY-FIT | Sign In or Create Account</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* =============================================
+           ACCOUNT TYPE SELECTION MODAL
+        ============================================= */
+        .acc-type-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        .acc-type-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .acc-type-modal {
+            background: #fff;
+            border-radius: 20px;
+            padding: 48px 44px 40px;
+            max-width: 560px;
+            width: 100%;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+            transform: translateY(20px) scale(0.97);
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+            position: relative;
+        }
+        .acc-type-overlay.active .acc-type-modal {
+            transform: translateY(0) scale(1);
+        }
+        .acc-type-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: #F5F3EF;
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777777;
+            font-size: 1.2rem;
+            transition: background 0.2s;
+        }
+        .acc-type-close:hover { background: #E5E2DC; }
+        .acc-type-title {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .acc-type-title h2 { font-size: 1.7rem; font-family: var(--font-serif); color: #111111; margin-bottom: 6px; }
+        .acc-type-title p { color: #777777; font-size: 0.9rem; }
+        .acc-type-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 32px;
+        }
+        .acc-type-card {
+            border: 2px solid #E5E2DC;
+            border-radius: 14px;
+            padding: 28px 20px 22px;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: none;
+            color: #111111;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .acc-type-card:hover {
+            border-color: #111111;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
+        }
+        .acc-type-icon {
+            font-size: 2.8rem;
+            margin-bottom: 14px;
+            line-height: 1;
+        }
+        .acc-type-card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #111111;
+        }
+        .acc-type-card-desc {
+            font-size: 0.8rem;
+            color: #777777;
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+        .acc-type-btn {
+            width: 100%;
+            padding: 11px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .acc-type-btn.user { background: #111111; color: #fff; }
+        .acc-type-btn.user:hover { background: #333; }
+        .acc-type-btn.vendor { background: #F5F3EF; color: #111111; border: 1.5px solid #E5E2DC; }
+        .acc-type-btn.vendor:hover { background: #E5E2DC; }
+        @media (max-width: 480px) {
+            .acc-type-cards { grid-template-columns: 1fr; }
+            .acc-type-modal { padding: 36px 24px 28px; }
+        }
+
+        /* =============================================
+           LOGIN / REGISTER TABS
+        ============================================= */
+        .auth-tabs {
+            display: flex;
+            border-bottom: 2px solid #E5E2DC;
+            margin-bottom: 28px;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #777777;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .auth-tab.active { color: #111111; border-bottom-color: #111111; }
+        .auth-panel { display: none; }
+        .auth-panel.active { display: block; }
+    </style>
 </head>
 <body style="display: flex; flex-direction: column; min-height: 100vh;">
 
     {{HEADER}}
 
+    <!-- Account Type Selection Modal (Register) -->
+    <div class="acc-type-overlay" id="accTypeModal" role="dialog" aria-modal="true" aria-label="Choose account type">
+        <div class="acc-type-modal">
+            <button class="acc-type-close" onclick="closeAccTypeModal()" aria-label="Close">✕</button>
+
+            <div class="acc-type-title">
+                <h2>Create Account</h2>
+                <p>Choose your account type to get started</p>
+            </div>
+
+            <div class="acc-type-cards">
+                <div class="acc-type-card" onclick="registerAsUser()">
+                    <div class="acc-type-icon">👤</div>
+                    <div class="acc-type-card-title">User</div>
+                    <div class="acc-type-card-desc">Shop clothes and try before you buy</div>
+                    <button class="acc-type-btn user" type="button">Register as User</button>
+                </div>
+                <a class="acc-type-card" href="/vendor/register">
+                    <div class="acc-type-icon">🏪</div>
+                    <div class="acc-type-card-title">Vendor</div>
+                    <div class="acc-type-card-desc">Sell your clothes through TRY-FIT</div>
+                    <button class="acc-type-btn vendor" type="button">Register as Vendor</button>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Type Selection Modal -->
+    <div class="acc-type-overlay" id="loginTypeModal" role="dialog" aria-modal="true" aria-label="Choose login type">
+        <div class="acc-type-modal">
+            <button class="acc-type-close" onclick="closeLoginTypeModal()" aria-label="Close">✕</button>
+
+            <div class="acc-type-title">
+                <h2>Sign In</h2>
+                <p>Choose how you'd like to sign in</p>
+            </div>
+
+            <div class="acc-type-cards">
+                <div class="acc-type-card" onclick="loginAsUser()">
+                    <div class="acc-type-icon">👤</div>
+                    <div class="acc-type-card-title">User Login</div>
+                    <div class="acc-type-card-desc">Access your shopping account</div>
+                    <button class="acc-type-btn user" type="button">User Sign In</button>
+                </div>
+                <a class="acc-type-card" href="/vendor/login">
+                    <div class="acc-type-icon">🏪</div>
+                    <div class="acc-type-card-title">Vendor Login</div>
+                    <div class="acc-type-card-desc">Access your vendor dashboard</div>
+                    <button class="acc-type-btn vendor" type="button">Vendor Sign In</button>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <main class="container" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
-        <div class="auth-container" style="margin: 0; width: 100%; max-width: 500px; padding: 60px 50px;">
-            
+        <div class="auth-container" style="margin: 0; width: 100%; max-width: 500px; padding: 56px 50px;">
+
             {{INFO_ALERT}}
             {{ERROR_ALERT}}
-            
+
             <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="font-size: 2rem; margin-bottom: 8px;">Welcome Back</h2>
+                <h2 style="font-size: 2rem; margin-bottom: 8px; font-family: var(--font-serif);">Welcome Back</h2>
                 <p style="color: var(--muted); font-size: 0.9rem;">Sign in or create an account</p>
             </div>
-            
-            <form method="POST" action="/api/send-otp" autocomplete="off">
-                <input type="hidden" name="purpose" value="login">
-                <div class="form-group">
-                    <label class="form-label">Email Address</label>
-                    <input type="email" name="email" class="form-control" required placeholder="name@example.com">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Continue</button>
-            </form>
 
-            <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
-                <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">Don't have an account?</p>
-                <form method="POST" action="/api/send-otp" autocomplete="off">
-                    <input type="hidden" name="purpose" value="register">
-                    <div class="form-group">
-                        <input type="text" name="name" class="form-control" required placeholder="Full Name" style="margin-bottom: 12px; padding: 12px;">
-                        <input type="email" name="email" class="form-control" required placeholder="Email Address" style="padding: 12px;">
-                    </div>
-                    <button type="submit" class="btn-secondary" style="width: 100%;">Create Account</button>
-                </form>
+            <!-- Tabs -->
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">Sign In</div>
+                <div class="auth-tab" id="tab-register" onclick="openAccTypeModal()">Register</div>
             </div>
-            
+
+            <!-- Sign In Panel -->
+            <div class="auth-panel active" id="panel-signin">
+                <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; text-align: center;">
+                    Sign in as <strong>User</strong> or <a href="#" onclick="openLoginTypeModal(); return false;" style="color: #111111; font-weight: 700; text-decoration: underline;">Vendor</a>
+                </p>
+                <form method="POST" action="/api/send-otp" autocomplete="off">
+                    <input type="hidden" name="purpose" value="login">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control" required placeholder="name@example.com" autocomplete="email">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; height: 50px;">Continue with Email</button>
+                </form>
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="/vendor/login" style="font-size: 0.85rem; color: var(--muted); text-decoration: underline;">Sign in as Vendor instead →</a>
+                </div>
+            </div>
+
+            <!-- Register Panel placeholder (opens modal) -->
+            <div class="auth-panel" id="panel-register">
+                <p style="color: var(--muted); font-size: 0.9rem; text-align: center; margin-bottom: 24px;">Select your account type above to get started.</p>
+            </div>
+
+            <div style="text-align: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <p style="font-size: 0.82rem; color: var(--muted);">New customer? <a href="#" onclick="openAccTypeModal(); return false;" style="color: #111111; font-weight: 700; text-decoration: underline;">Create Account</a></p>
+            </div>
         </div>
     </main>
 
@@ -50,5 +260,90 @@
     </div>
 
     {{FOOTER}}
+
+    <script>
+    function openAccTypeModal() {
+        document.getElementById('accTypeModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeAccTypeModal() {
+        document.getElementById('accTypeModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    function openLoginTypeModal() {
+        document.getElementById('loginTypeModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeLoginTypeModal() {
+        document.getElementById('loginTypeModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Close modals on overlay click
+    document.getElementById('accTypeModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAccTypeModal();
+    });
+    document.getElementById('loginTypeModal').addEventListener('click', function(e) {
+        if (e.target === this) closeLoginTypeModal();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { closeAccTypeModal(); closeLoginTypeModal(); }
+    });
+
+    function registerAsUser() {
+        // Show user registration form inside the modal
+        closeAccTypeModal();
+        // Open inline registration form
+        showInlineRegister();
+    }
+
+    function loginAsUser() {
+        closeLoginTypeModal();
+        // Focus on the sign in form
+        var emailInput = document.querySelector('input[type="email"]');
+        if (emailInput) emailInput.focus();
+    }
+
+    function showInlineRegister() {
+        // Replace page content with user registration form
+        var mainContainer = document.querySelector('.auth-container');
+        mainContainer.innerHTML = `
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="font-size: 2rem; margin-bottom: 8px; font-family: var(--font-serif);">Create User Account</h2>
+                <p style="color: var(--muted); font-size: 0.9rem;">Enter your details to get started</p>
+            </div>
+            <form method="POST" action="/api/send-otp" autocomplete="off">
+                <input type="hidden" name="purpose" value="register">
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="name" class="form-control" required placeholder="Your full name" autocomplete="name">
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-control" required placeholder="name@example.com" autocomplete="email">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; height: 50px;">Send Verification Code</button>
+            </form>
+            <div style="text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <a href="/account" style="font-size: 0.85rem; color: var(--muted); text-decoration: underline;">&larr; Back to Sign In</a>
+            </div>
+        `;
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        document.getElementById('panel-' + tab).classList.add('active');
+    }
+
+    // Check URL to auto-open modals or forms
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('action') === 'register') {
+        openAccTypeModal();
+    }
+    </script>
 </body>
 </html>

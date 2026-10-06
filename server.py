@@ -627,27 +627,42 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     a.addEventListener('touchstart', () => prefetchLink(a.href), { passive: true });
                 });
 
-                // Scroll Animations
-                const elementsToAnimate = document.querySelectorAll('section, .product-card, .category-tabs, h2, .footer-col');
-                elementsToAnimate.forEach(el => el.classList.add('scroll-anim'));
-
+                // Luxury Scroll Blend Pop-Up Animations
+                const animSelector = '.product-card, .step-card, .trial-card, .catalog-sort-bar, .category-tabs, h2:not(.hero-title), .footer-col';
                 const observerOptions = {
-                    threshold: 0.1,
-                    rootMargin: "0px 0px -50px 0px"
+                    threshold: 0.08,
+                    rootMargin: "0px 0px -30px 0px"
                 };
 
-                const observer = new IntersectionObserver(function(entries, observer) {
-                    entries.forEach(entry => {
-                        if(entry.isIntersecting){
-                            entry.target.classList.add('visible');
-                            observer.unobserve(entry.target);
-                        }
-                    });
-                }, observerOptions);
+                if ('IntersectionObserver' in window) {
+                    const scrollObserver = new IntersectionObserver(function(entries, obs) {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add('visible');
+                                obs.unobserve(entry.target);
+                            }
+                        });
+                    }, observerOptions);
 
-                document.querySelectorAll('.scroll-anim').forEach(el => {
-                    observer.observe(el);
-                });
+                    function registerAnimElements() {
+                        document.querySelectorAll(animSelector).forEach(el => {
+                            if (!el.classList.contains('scroll-anim')) {
+                                el.classList.add('scroll-anim');
+                                const rect = el.getBoundingClientRect();
+                                if (rect.top < window.innerHeight && rect.bottom > 0) {
+                                    // In initial viewport: pop up smoothly
+                                    setTimeout(() => { el.classList.add('visible'); }, 60);
+                                } else {
+                                    scrollObserver.observe(el);
+                                }
+                            }
+                        });
+                    }
+                    registerAnimElements();
+                    window._refreshScrollAnim = registerAnimElements;
+                } else {
+                    document.querySelectorAll(animSelector).forEach(el => el.classList.add('visible'));
+                }
 
                 // Live Search Suggestions
                 document.querySelectorAll('.search-form, .search-input-wrapper').forEach(form => {
@@ -1103,15 +1118,20 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
         finally:
             conn.close()
 
-    def get_catalog_html_by_category(self, categories, limit=None, is_guest=False, user=None):
+    def get_catalog_html_by_category(self, categories, keyword=None, limit=None, is_guest=False, user=None):
         conn = db.get_connection()
         try:
             with conn.cursor() as cursor:
                 format_strings = ','.join(['%s'] * len(categories))
-                query = f"SELECT * FROM clothes WHERE category IN ({format_strings}) ORDER BY id ASC"
+                query = f"SELECT * FROM clothes WHERE category IN ({format_strings})"
+                params = list(categories)
+                if keyword:
+                    query += " AND name LIKE %s"
+                    params.append(f"%{keyword}%")
+                query += " ORDER BY id ASC"
                 if limit is not None:
                     query += f" LIMIT {int(limit)}"
-                cursor.execute(query, tuple(categories))
+                cursor.execute(query, tuple(params))
                 items = cursor.fetchall()
 
             if not items:
@@ -1188,9 +1208,19 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             'handbags': ['Women – Footwear & Handbags', 'Footwear & Handbags']
         }
 
+        keyword_map = {
+            'shirts': 'Shirt',
+            'jackets': 'Jacket',
+            'jeans': 'Jean',
+            'shoes': 'Shoe',
+            'dresses': 'Dress',
+            'handbags': 'Handbag'
+        }
+        keyword = keyword_map.get(active_category)
+
         # Determine the HTML to inject
         if active_category in cat_map:
-            catalog_html = self.get_catalog_html_by_category(cat_map[active_category], limit=limit, is_guest=is_guest, user=user)
+            catalog_html = self.get_catalog_html_by_category(cat_map[active_category], keyword=keyword, limit=limit, is_guest=is_guest, user=user)
         else:
             catalog_html = self.get_catalog_html(limit=limit, is_guest=is_guest, user=user)
 
@@ -2195,6 +2225,106 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error(500, f"Error rendering admin stub: {e}")
             return
 
+        # ─────────────────────────────────────────────────────
+        # VENDOR GET ROUTES
+        # ─────────────────────────────────────────────────────
+        elif path == '/vendor/register':
+            self.serve_vendor_register(query_params)
+            return
+
+        elif path == '/vendor/verify-otp':
+            self.serve_vendor_verify_otp(query_params)
+            return
+
+        elif path == '/vendor/profile-setup':
+            self.serve_vendor_profile_setup(query_params)
+            return
+
+        elif path == '/vendor/login':
+            user = self.get_current_user()
+            if user and user.get('role') == 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/dashboard')
+                self.end_headers()
+            else:
+                self.serve_vendor_login(query_params)
+            return
+
+        elif path == '/vendor/verify-login-otp':
+            self.serve_vendor_verify_login(query_params)
+            return
+
+        elif path == '/vendor/dashboard':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login?error=' + urllib.parse.quote('Please log in as a vendor to access the dashboard.'))
+                self.end_headers()
+            else:
+                self.serve_vendor_dashboard(user, query_params)
+            return
+
+        elif path == '/vendor/products':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+            else:
+                self.serve_vendor_products(user, query_params)
+            return
+
+        elif path == '/vendor/products/add':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+            else:
+                self.serve_vendor_add_product(user, query_params)
+            return
+
+        elif path == '/vendor/profile':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+            else:
+                self.serve_vendor_profile(user, query_params)
+            return
+
+        elif path == '/vendor/orders':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+            else:
+                self.serve_vendor_orders(user, query_params)
+            return
+
+        elif path == '/vendor/settings':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'vendor':
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+            else:
+                # Reuse profile page for settings for now
+                self.serve_vendor_profile(user, query_params)
+            return
+
+        elif path == '/admin/vendors':
+            user = self.get_current_user()
+            if not user or user.get('role') != 'admin':
+                self.send_response(303)
+                self.send_header('Location', '/admin/login')
+                self.end_headers()
+            else:
+                self.serve_admin_vendors(user, query_params)
+            return
+
         else:
             self.send_error(404, "Page not found")
 
@@ -2232,6 +2362,31 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             self.handle_wishlist_add()
         elif path == '/api/wishlist/remove' or path == '/wishlist/remove':
             self.handle_wishlist_remove()
+        # ─────────────────────────────────────────────────────
+        # VENDOR POST ROUTES
+        # ─────────────────────────────────────────────────────
+        elif path == '/api/vendor/send-otp':
+            self.handle_vendor_send_otp()
+        elif path == '/api/vendor/verify-otp':
+            self.handle_vendor_verify_otp()
+        elif path == '/api/vendor/create-profile':
+            self.handle_vendor_create_profile()
+        elif path == '/api/vendor/login/send-otp':
+            self.handle_vendor_login_send_otp()
+        elif path == '/api/vendor/login/verify-otp':
+            self.handle_vendor_login_verify_otp()
+        elif path == '/api/vendor/profile/update':
+            self.handle_vendor_profile_update()
+        elif path == '/api/vendor/products/add':
+            self.handle_vendor_product_add()
+        elif path == '/api/vendor/products/delete':
+            self.handle_vendor_product_delete()
+        elif path == '/api/admin/vendor/approve':
+            self.handle_admin_vendor_action('approved')
+        elif path == '/api/admin/vendor/reject':
+            self.handle_admin_vendor_action('rejected')
+        elif path == '/api/admin/vendor/suspend':
+            self.handle_admin_vendor_action('suspended')
         else:
             self.send_json_error("Endpoint not found", 404)
 
@@ -2732,6 +2887,35 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     self.send_json_error(err, 400)
                     return
 
+            # Rate-limit: prevent OTP spam (max 1 per 30 seconds per email+purpose)
+            cursor.execute("""
+                SELECT created_at FROM otp_verifications
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            """, (email, purpose))
+            last_otp = cursor.fetchone()
+            if last_otp:
+                last_created = last_otp['created_at']
+                seconds_ago = (datetime.datetime.now() - last_created).total_seconds()
+                if seconds_ago < 30:
+                    conn.close()
+                    wait_secs = int(30 - seconds_ago)
+                    err = f"Please wait {wait_secs} seconds before requesting another code."
+                    if self.is_form_submission():
+                        redirect_url = f"/verify-otp?email={urllib.parse.quote(email)}&purpose={urllib.parse.quote(purpose)}&name={urllib.parse.quote(name)}&error={urllib.parse.quote(err)}"
+                        self.send_response(303)
+                        self.send_header('Location', redirect_url)
+                        self.end_headers()
+                        return
+                    self.send_json_error(err, 429)
+                    return
+
+            # Invalidate all previous unverified OTPs for this email+purpose
+            cursor.execute("""
+                UPDATE otp_verifications SET is_verified = TRUE
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+            """, (email, purpose))
+
             otp = f"{random.randint(100000, 999999)}"
             expires_at = datetime.datetime.now() + datetime.timedelta(minutes=5)
 
@@ -2742,7 +2926,10 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
 
+            print(f"[OTP] Sending OTP to email: {email} for purpose: {purpose}")
             success, message = sms.send_gmail_otp(email, otp)
+            print(f"[OTP] Result for {email}: success={success}, message={message}")
+
             if success:
                 if self.is_form_submission():
                     redirect_url = f"/verify-otp?email={urllib.parse.quote(email)}&purpose={urllib.parse.quote(purpose)}&name={urllib.parse.quote(name)}&info={urllib.parse.quote(message)}"
@@ -2750,7 +2937,7 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                     self.send_header('Location', redirect_url)
                     self.end_headers()
                     return
-                self.send_json_success({"message": message, "otp": otp})
+                self.send_json_success({"message": message})
             else:
                 if self.is_form_submission():
                     self.send_response(303)
@@ -2760,13 +2947,16 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json_error(message, 500)
 
         except Exception as e:
-            print("Send OTP exception:", e)
+            print(f"Send OTP exception for email={email if 'email' in dir() else 'unknown'}: {e}")
+            import traceback
+            traceback.print_exc()
             if self.is_form_submission():
                 self.send_response(303)
                 self.send_header('Location', f'/?error={urllib.parse.quote("Server error occurred")}')
                 self.end_headers()
                 return
             self.send_json_error(f"Server error: {str(e)}", 500)
+
 
     def handle_verify_otp(self):
         try:
@@ -3081,6 +3271,1206 @@ class TryFitHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             self.send_json_error(f"Action failed: {str(e)}", 500)
+
+    # ═══════════════════════════════════════════════════════════
+    #  VENDOR — HELPER
+    # ═══════════════════════════════════════════════════════════
+
+    def get_vendor_for_user(self, user_id):
+        """Return the vendors row for a given user_id, or None."""
+        conn = db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM vendors WHERE user_id = %s", (user_id,))
+                return cur.fetchone()
+        finally:
+            conn.close()
+
+    def require_vendor(self, user):
+        """Return (vendor, None) or (None, error_str)."""
+        if not user or user.get('role') != 'vendor':
+            return None, "Unauthorized"
+        vendor = self.get_vendor_for_user(user['id'])
+        if not vendor:
+            return None, "Vendor profile not found"
+        return vendor, None
+
+    # ═══════════════════════════════════════════════════════════
+    #  VENDOR — SERVE METHODS (GET)
+    # ═══════════════════════════════════════════════════════════
+
+    def serve_vendor_register(self, query_params=None):
+        try:
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
+            owner_name = urllib.parse.unquote(query_params.get('name', [''])[0]) if query_params else ''
+            email = urllib.parse.unquote(query_params.get('email', [''])[0]) if query_params else ''
+            mobile = urllib.parse.unquote(query_params.get('mobile', [''])[0]) if query_params else ''
+            with open('templates/vendor_register.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{ERROR_ALERT}}', error_html)
+            content = content.replace('{{OWNER_NAME}}', html.escape(owner_name))
+            content = content.replace('{{EMAIL}}', html.escape(email))
+            content = content.replace('{{MOBILE}}', html.escape(mobile))
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor register page error: {e}")
+
+    def serve_vendor_verify_otp(self, query_params=None):
+        try:
+            email = urllib.parse.unquote(query_params.get('email', [''])[0]) if query_params else ''
+            owner_name = urllib.parse.unquote(query_params.get('name', [''])[0]) if query_params else ''
+            mobile = urllib.parse.unquote(query_params.get('mobile', [''])[0]) if query_params else ''
+            info_msg = urllib.parse.unquote(query_params.get('info', [''])[0]) if query_params else ''
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            info_html = f'<div class="toast-alert alert-success" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2);padding:1rem;border-radius:8px;margin-bottom:1.5rem;font-size:0.9rem;text-align:center;">{info_msg}</div>' if info_msg else ''
+            error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
+            with open('templates/vendor_verify_otp.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{EMAIL}}', html.escape(email))
+            content = content.replace('{{OWNER_NAME}}', html.escape(owner_name))
+            content = content.replace('{{MOBILE}}', html.escape(mobile))
+            content = content.replace('{{INFO_ALERT}}', info_html)
+            content = content.replace('{{ERROR_ALERT}}', error_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor verify OTP page error: {e}")
+
+    def serve_vendor_profile_setup(self, query_params=None):
+        try:
+            email = urllib.parse.unquote(query_params.get('email', [''])[0]) if query_params else ''
+            owner_name = urllib.parse.unquote(query_params.get('name', [''])[0]) if query_params else ''
+            mobile = urllib.parse.unquote(query_params.get('mobile', [''])[0]) if query_params else ''
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            info_msg = urllib.parse.unquote(query_params.get('info', [''])[0]) if query_params else ''
+            error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
+            info_html = f'<div class="toast-alert alert-success" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2);padding:1rem;border-radius:8px;margin-bottom:1.5rem;font-size:0.9rem;text-align:center;">{info_msg}</div>' if info_msg else ''
+            with open('templates/vendor_profile_setup.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{EMAIL}}', html.escape(email))
+            content = content.replace('{{OWNER_NAME}}', html.escape(owner_name))
+            content = content.replace('{{MOBILE}}', html.escape(mobile))
+            content = content.replace('{{ERROR_ALERT}}', error_html)
+            content = content.replace('{{INFO_ALERT}}', info_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor profile setup page error: {e}")
+
+    def serve_vendor_login(self, query_params=None):
+        try:
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            info_msg = urllib.parse.unquote(query_params.get('info', [''])[0]) if query_params else ''
+            error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
+            info_html = f'<div class="toast-alert alert-success" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2);padding:1rem;border-radius:8px;margin-bottom:1.5rem;font-size:0.9rem;text-align:center;">{info_msg}</div>' if info_msg else ''
+            with open('templates/vendor_login.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{ERROR_ALERT}}', error_html)
+            content = content.replace('{{INFO_ALERT}}', info_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor login page error: {e}")
+
+    def serve_vendor_verify_login(self, query_params=None):
+        try:
+            email = urllib.parse.unquote(query_params.get('email', [''])[0]) if query_params else ''
+            info_msg = urllib.parse.unquote(query_params.get('info', [''])[0]) if query_params else ''
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            info_html = f'<div class="toast-alert alert-success" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2);padding:1rem;border-radius:8px;margin-bottom:1.5rem;font-size:0.9rem;text-align:center;">{info_msg}</div>' if info_msg else ''
+            error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
+            with open('templates/vendor_verify_login.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{EMAIL}}', html.escape(email))
+            content = content.replace('{{INFO_ALERT}}', info_html)
+            content = content.replace('{{ERROR_ALERT}}', error_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor verify login page error: {e}")
+
+    def serve_vendor_dashboard(self, user, query_params=None):
+        try:
+            vendor = self.get_vendor_for_user(user['id'])
+            if not vendor:
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login?error=' + urllib.parse.quote('Vendor profile not found.'))
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) as c FROM clothes WHERE vendor_id = %s", (vendor['id'],))
+                    total_products = cur.fetchone()['c']
+                    cur.execute("SELECT COUNT(*) as c FROM clothes WHERE vendor_id = %s AND stock > 0", (vendor['id'],))
+                    active_products = cur.fetchone()['c']
+                    # Recent products
+                    cur.execute("SELECT id, name, price, stock, category FROM clothes WHERE vendor_id = %s ORDER BY id DESC LIMIT 5", (vendor['id'],))
+                    recent_items = cur.fetchall()
+                    # Orders count (items sold)
+                    cur.execute("""
+                        SELECT COUNT(DISTINCT oi.order_id) as c FROM order_items oi
+                        JOIN clothes cl ON oi.cloth_id = cl.id
+                        WHERE cl.vendor_id = %s
+                    """, (vendor['id'],))
+                    total_orders = cur.fetchone()['c']
+            finally:
+                conn.close()
+
+            # Build recent products table HTML
+            if recent_items:
+                rows = ''
+                for item in recent_items:
+                    rows += f"""
+                    <tr>
+                        <td><strong>{html.escape(item['name'])}</strong></td>
+                        <td>{html.escape(item['category'])}</td>
+                        <td>₹{float(item['price']):,.0f}</td>
+                        <td>{item['stock']}</td>
+                        <td><a href="/vendor/products" style="color:#111111;text-decoration:underline;font-size:0.85rem;">View All</a></td>
+                    </tr>"""
+                recent_products_html = f"""
+                <table class="vd-table">
+                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead>
+                    <tbody>{rows}</tbody>
+                </table>"""
+            else:
+                recent_products_html = f"""
+                <div style="padding:40px;text-align:center;color:#777777;">
+                    <div style="font-size:3rem;margin-bottom:16px;">📦</div>
+                    <h3 style="margin-bottom:8px;font-family:var(--font-serif);">No Products Yet</h3>
+                    <p style="margin-bottom:20px;">Start building your catalog by adding your first product.</p>
+                    <a href="/vendor/products/add" class="btn-primary" style="display:inline-block;padding:12px 28px;text-decoration:none;">Add First Product</a>
+                </div>"""
+
+            # Status banner
+            status = vendor['status']
+            status_messages = {
+                'pending': ('<div class="vd-status-banner pending"><span style="font-size:1.5rem;">⏳</span><div><strong style="display:block;margin-bottom:4px;">Account Under Review</strong><span style="color:#92400e;font-size:0.88rem;">Your vendor account is currently pending approval by the TRY-FIT team. You\'ll receive an email once approved (usually within 1–2 business days).</span></div></div>', 'pending'),
+                'approved': ('', 'approved'),
+                'rejected': ('<div class="vd-status-banner rejected"><span style="font-size:1.5rem;">❌</span><div><strong style="display:block;margin-bottom:4px;">Account Rejected</strong><span style="color:#991b1b;font-size:0.88rem;">Your vendor account was rejected. Please contact support@tryfit.com for more information.</span></div></div>', 'rejected'),
+                'suspended': ('<div class="vd-status-banner suspended"><span style="font-size:1.5rem;">⏸️</span><div><strong style="display:block;margin-bottom:4px;">Account Suspended</strong><span style="color:#374151;font-size:0.88rem;">Your vendor account has been suspended. Please contact support@tryfit.com for assistance.</span></div></div>', 'suspended'),
+            }
+            status_banner, _ = status_messages.get(status, ('', status))
+            status_label_map = {'pending': 'Pending Approval', 'approved': 'Approved', 'rejected': 'Rejected', 'suspended': 'Suspended'}
+
+            alert_html = ''
+            if query_params:
+                if 'error' in query_params:
+                    msg = urllib.parse.unquote(query_params['error'][0])
+                    alert_html = f'<div class="toast-alert alert-error">{msg}</div>'
+                elif 'success' in query_params:
+                    msg = urllib.parse.unquote(query_params['success'][0])
+                    alert_html = f'<div class="toast-alert alert-success">{msg}</div>'
+
+            with open('templates/vendor_dashboard.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            business_name = vendor['business_name']
+            content = content.replace('{{BUSINESS_NAME}}', html.escape(business_name))
+            content = content.replace('{{VENDOR_INITIAL}}', business_name[0].upper() if business_name else 'V')
+            content = content.replace('{{VENDOR_STATUS}}', status)
+            content = content.replace('{{VENDOR_STATUS_LABEL}}', status_label_map.get(status, status.title()))
+            content = content.replace('{{PAGE_TITLE}}', 'Dashboard')
+            content = content.replace('{{TOTAL_PRODUCTS}}', str(total_products))
+            content = content.replace('{{ACTIVE_PRODUCTS}}', str(active_products))
+            content = content.replace('{{TOTAL_ORDERS}}', str(total_orders))
+            content = content.replace('{{BUSINESS_CITY}}', html.escape(vendor.get('city', '')))
+            content = content.replace('{{BUSINESS_STATE}}', html.escape(vendor.get('state', '')))
+            content = content.replace('{{BUSINESS_CATEGORY}}', html.escape(vendor.get('business_category', '')))
+            content = content.replace('{{BUSINESS_PHONE}}', html.escape(vendor.get('business_phone', '')))
+            content = content.replace('{{STATUS_BANNER}}', status_banner)
+            content = content.replace('{{RECENT_PRODUCTS}}', recent_products_html)
+            content = content.replace('{{MESSAGE_ALERT}}', alert_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            self.send_error(500, f"Vendor dashboard error: {e}")
+
+    def serve_vendor_products(self, user, query_params=None):
+        try:
+            vendor = self.get_vendor_for_user(user['id'])
+            if not vendor:
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT * FROM clothes WHERE vendor_id = %s ORDER BY id DESC", (vendor['id'],))
+                    products = cur.fetchall()
+            finally:
+                conn.close()
+
+            alert_html = ''
+            if query_params:
+                if 'error' in query_params:
+                    msg = urllib.parse.unquote(query_params['error'][0])
+                    alert_html = f'<div class="toast-alert alert-error">{msg}</div>'
+                elif 'success' in query_params:
+                    msg = urllib.parse.unquote(query_params['success'][0])
+                    alert_html = f'<div class="toast-alert alert-success">{msg}</div>'
+
+            if products:
+                rows = ''
+                for p in products:
+                    stock_badge = f'<span class="badge badge-active">{p["stock"]} in stock</span>' if p['stock'] > 0 else '<span class="badge badge-inactive">Out of Stock</span>'
+                    rows += f"""
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <img src="{html.escape(p.get('image_url','') or '')}" alt="" class="prod-img" onerror="this.style.display='none'">
+                                <strong>{html.escape(p['name'])}</strong>
+                            </div>
+                        </td>
+                        <td>{html.escape(p['category'])}</td>
+                        <td>₹{float(p['price']):,.0f}</td>
+                        <td>{stock_badge}</td>
+                        <td>
+                            <form method="POST" action="/api/vendor/products/delete" style="display:inline;" onsubmit="return confirm('Delete this product?');">
+                                <input type="hidden" name="product_id" value="{p['id']}">
+                                <button type="submit" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:0.82rem;font-weight:600;text-decoration:underline;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>"""
+                table_html = f"""
+                <table class="vd-table">
+                    <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                    <tbody>{rows}</tbody>
+                </table>"""
+            else:
+                table_html = f"""
+                <div style="padding:60px 40px;text-align:center;color:#777777;">
+                    <div style="font-size:3rem;margin-bottom:16px;">📦</div>
+                    <h3 style="margin-bottom:8px;font-family:var(--font-serif);">No Products Yet</h3>
+                    <p style="margin-bottom:24px;">Add your first clothing product to start selling on TRY-FIT.</p>
+                    <a href="/vendor/products/add" class="btn-primary" style="display:inline-block;padding:12px 28px;text-decoration:none;">+ Add First Product</a>
+                </div>"""
+
+            with open('templates/vendor_products.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{PRODUCT_COUNT}}', str(len(products)))
+            content = content.replace('{{PRODUCTS_TABLE}}', table_html)
+            content = content.replace('{{MESSAGE_ALERT}}', alert_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor products page error: {e}")
+
+    def serve_vendor_add_product(self, user, query_params=None):
+        try:
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            error_html = f'<div class="toast-alert alert-error">{error_msg}</div>' if error_msg else ''
+            with open('templates/vendor_add_product.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            content = content.replace('{{ERROR_ALERT}}', error_html)
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor add product page error: {e}")
+
+    def serve_vendor_profile(self, user, query_params=None):
+        try:
+            vendor = self.get_vendor_for_user(user['id'])
+            if not vendor:
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+                return
+
+            error_msg = urllib.parse.unquote(query_params.get('error', [''])[0]) if query_params else ''
+            alert_html = ''
+            if query_params:
+                if 'error' in query_params:
+                    msg = urllib.parse.unquote(query_params['error'][0])
+                    alert_html = f'<div class="toast-alert alert-error">{msg}</div>'
+                elif 'success' in query_params:
+                    msg = urllib.parse.unquote(query_params['success'][0])
+                    alert_html = f'<div class="toast-alert alert-success">{msg}</div>'
+
+            with open('templates/vendor_profile.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            cat = vendor.get('business_category', '')
+            cat_options = {
+                'CAT_MENS': "Men's Clothing", 'CAT_WOMENS': "Women's Clothing",
+                'CAT_KIDS': "Kids Clothing", 'CAT_FASHION': "Fashion Store",
+                'CAT_MFR': "Clothing Manufacturer", 'CAT_BOUTIQUE': "Boutique",
+                'CAT_BRAND': "Fashion Brand", 'CAT_ACC': "Accessories",
+                'CAT_ETHNIC': "Ethnic Wear", 'CAT_OTHER': "Other"
+            }
+            for key, val in cat_options.items():
+                content = content.replace('{{' + key + '}}', 'selected' if cat == val else '')
+
+            content = content.replace('{{MESSAGE_ALERT}}', alert_html)
+            content = content.replace('{{ERROR_ALERT}}', '')
+            content = content.replace('{{BUSINESS_NAME}}', html.escape(vendor.get('business_name', '')))
+            content = content.replace('{{DESCRIPTION}}', html.escape(vendor.get('description', '') or ''))
+            content = content.replace('{{BUSINESS_PHONE}}', html.escape(vendor.get('business_phone', '')))
+            content = content.replace('{{BUSINESS_EMAIL}}', html.escape(vendor.get('business_email', '') or ''))
+            content = content.replace('{{WEBSITE}}', html.escape(vendor.get('website', '') or ''))
+            content = content.replace('{{ADDRESS}}', html.escape(vendor.get('address', '')))
+            content = content.replace('{{CITY}}', html.escape(vendor.get('city', '')))
+            content = content.replace('{{STATE}}', html.escape(vendor.get('state', '')))
+            content = content.replace('{{PINCODE}}', html.escape(vendor.get('pincode', '')))
+            content = content.replace('{{LATITUDE}}', str(vendor.get('latitude', '') or ''))
+            content = content.replace('{{LONGITUDE}}', str(vendor.get('longitude', '') or ''))
+            content = content.replace('{{OPENING_HOURS}}', html.escape(vendor.get('opening_hours', '09:00') or '09:00'))
+            content = content.replace('{{CLOSING_HOURS}}', html.escape(vendor.get('closing_hours', '21:00') or '21:00'))
+            self.send_html_response(content, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor profile page error: {e}")
+
+    def serve_vendor_orders(self, user, query_params=None):
+        try:
+            vendor = self.get_vendor_for_user(user['id'])
+            if not vendor:
+                self.send_response(303)
+                self.send_header('Location', '/vendor/login')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT oi.id as item_id, oi.quantity, oi.price, oi.size, oi.color,
+                               cl.name as product_name, o.id as order_id, o.created_at,
+                               o.delivery_address, o.status, u.name as customer_name
+                        FROM order_items oi
+                        JOIN clothes cl ON oi.cloth_id = cl.id
+                        JOIN orders o ON oi.order_id = o.id
+                        JOIN users u ON o.user_id = u.id
+                        WHERE cl.vendor_id = %s
+                        ORDER BY o.created_at DESC
+                        LIMIT 50
+                    """, (vendor['id'],))
+                    orders = cur.fetchall()
+            finally:
+                conn.close()
+
+            if orders:
+                rows = ''
+                for o in orders:
+                    rows += f"""
+                    <tr>
+                        <td>#{o['order_id']}</td>
+                        <td>{html.escape(o['customer_name'])}</td>
+                        <td>{html.escape(o['product_name'])}<br><small style="color:#777777;">Size: {o['size']} | Color: {o['color']}</small></td>
+                        <td>{o['quantity']}</td>
+                        <td>₹{float(o['price']):,.0f}</td>
+                        <td><span style="font-size:0.8rem;padding:3px 10px;border-radius:9999px;background:#F5F3EF;">{html.escape(o.get('status','') or 'Pending')}</span></td>
+                        <td style="font-size:0.82rem;color:#777777;">{o['created_at'].strftime('%d %b %Y') if o['created_at'] else '-'}</td>
+                    </tr>"""
+                orders_html = f"""
+                <div style="background:#fff;border:1px solid #E5E2DC;border-radius:14px;overflow:hidden;">
+                    <table class="vd-table">
+                        <thead><tr><th>Order #</th><th>Customer</th><th>Product</th><th>Qty</th><th>Price</th><th>Status</th><th>Date</th></tr></thead>
+                        <tbody>{rows}</tbody>
+                    </table>
+                </div>"""
+            else:
+                orders_html = """
+                <div style="background:#fff;border:1px solid #E5E2DC;border-radius:14px;padding:60px 40px;text-align:center;color:#777777;">
+                    <div style="font-size:3rem;margin-bottom:16px;">📋</div>
+                    <h3 style="margin-bottom:8px;font-family:var(--font-serif);">No Orders Yet</h3>
+                    <p>Orders for your products will appear here.</p>
+                </div>"""
+
+            # Reuse vendor dashboard template structure with orders content
+            page_html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+            <title>TRY-FIT | Vendor Orders</title><link rel="stylesheet" href="/static/style.css">
+            <style>body{{background:#F5F3EF;}} :root{{--sidebar-width:260px;}}
+            .vd-sidebar{{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-width);background:#111111;color:#fff;display:flex;flex-direction:column;z-index:100;overflow-y:auto;}}
+            .vd-main{{margin-left:var(--sidebar-width);min-height:100vh;}}
+            .vd-topbar{{background:#fff;border-bottom:1px solid #E5E2DC;padding:16px 40px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50;}}
+            .vd-topbar h1{{font-size:1.3rem;font-weight:700;}}
+            .vd-content{{padding:40px;}}
+            .vd-nav-item{{display:flex;align-items:center;gap:12px;padding:13px 28px;color:rgba(255,255,255,0.65);text-decoration:none;font-size:0.88rem;font-weight:500;border-left:3px solid transparent;transition:all 0.2s;}}
+            .vd-nav-item:hover{{color:#fff;background:rgba(255,255,255,0.05);}}
+            .vd-nav-item.active{{color:#fff;background:rgba(255,255,255,0.08);border-left-color:#fff;}}
+            .vd-table{{width:100%;border-collapse:collapse;}}
+            .vd-table th{{background:#F5F3EF;padding:12px 16px;text-align:left;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;color:#777777;border-bottom:1px solid #E5E2DC;}}
+            .vd-table td{{padding:14px 16px;border-bottom:1px solid #F5F3EF;font-size:0.88rem;}}
+            .vd-table tr:hover td{{background:#fafaf9;}}
+            @media(max-width:900px){{.vd-main{{margin-left:0;}} .vd-sidebar{{display:none;}} .vd-content{{padding:20px;}}}}
+            </style></head><body>
+            <aside class="vd-sidebar">
+                <div style="padding:28px 28px 20px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <a href="/" style="font-size:1.5rem;color:#fff;display:block;margin-bottom:4px;font-family:var(--font-serif);text-decoration:none;">TRY-FIT</a>
+                    <span style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);">Vendor Portal</span>
+                </div>
+                <nav style="padding:20px 0;flex:1;">
+                    <a href="/vendor/dashboard" class="vd-nav-item">Overview</a>
+                    <a href="/vendor/products" class="vd-nav-item">Products</a>
+                    <a href="/vendor/orders" class="vd-nav-item active">Orders</a>
+                    <a href="/vendor/profile" class="vd-nav-item">Business Profile</a>
+                </nav>
+                <div style="padding:20px 28px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <a href="/" style="display:block;text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.4);margin-bottom:10px;text-decoration:none;">← Back to Shop</a>
+                    <form method="POST" action="/api/logout"><button type="submit" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);padding:10px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Sign Out</button></form>
+                </div>
+            </aside>
+            <div class="vd-main">
+                <div class="vd-topbar"><h1>Orders</h1></div>
+                <div class="vd-content">{orders_html}</div>
+            </div>
+            </body></html>"""
+            self.send_html_response(page_html, 200)
+        except Exception as e:
+            self.send_error(500, f"Vendor orders page error: {e}")
+
+    def serve_admin_vendors(self, user, query_params=None):
+        try:
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT v.*, u.name as owner_name, u.email as owner_email
+                        FROM vendors v JOIN users u ON v.user_id = u.id
+                        ORDER BY v.created_at DESC
+                    """)
+                    vendors = cur.fetchall()
+            finally:
+                conn.close()
+
+            alert_html = ''
+            if query_params:
+                if 'error' in query_params:
+                    alert_html = f'<div class="toast-alert alert-error">{urllib.parse.unquote(query_params["error"][0])}</div>'
+                elif 'success' in query_params:
+                    alert_html = f'<div class="toast-alert alert-success">{urllib.parse.unquote(query_params["success"][0])}</div>'
+
+            status_badge = {
+                'pending': '<span style="padding:3px 10px;border-radius:9999px;background:#fffbeb;color:#d97706;font-size:0.75rem;font-weight:600;">Pending</span>',
+                'approved': '<span style="padding:3px 10px;border-radius:9999px;background:#f0fdf4;color:#16a34a;font-size:0.75rem;font-weight:600;">Approved</span>',
+                'rejected': '<span style="padding:3px 10px;border-radius:9999px;background:#fef2f2;color:#dc2626;font-size:0.75rem;font-weight:600;">Rejected</span>',
+                'suspended': '<span style="padding:3px 10px;border-radius:9999px;background:#f9fafb;color:#6b7280;font-size:0.75rem;font-weight:600;">Suspended</span>',
+            }
+
+            rows = ''
+            for v in vendors:
+                badge = status_badge.get(v.get('status','pending'), '')
+                rows += f"""
+                <tr>
+                    <td><strong>{html.escape(v['owner_name'])}</strong><br><small style="color:#777777;">{html.escape(v['owner_email'])}</small></td>
+                    <td>{html.escape(v['business_name'])}</td>
+                    <td>{html.escape(v.get('business_category',''))}</td>
+                    <td>{html.escape(v.get('city',''))}, {html.escape(v.get('state',''))}</td>
+                    <td>{badge}</td>
+                    <td style="font-size:0.82rem;color:#777777;">{v['created_at'].strftime('%d %b %Y') if v.get('created_at') else '-'}</td>
+                    <td>
+                        <form method="POST" action="/api/admin/vendor/approve" style="display:inline;">
+                            <input type="hidden" name="vendor_id" value="{v['id']}">
+                            <button type="submit" style="background:#16a34a;color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.78rem;margin-right:4px;">Approve</button>
+                        </form>
+                        <form method="POST" action="/api/admin/vendor/reject" style="display:inline;">
+                            <input type="hidden" name="vendor_id" value="{v['id']}">
+                            <button type="submit" style="background:#dc2626;color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.78rem;margin-right:4px;">Reject</button>
+                        </form>
+                        <form method="POST" action="/api/admin/vendor/suspend" style="display:inline;">
+                            <input type="hidden" name="vendor_id" value="{v['id']}">
+                            <button type="submit" style="background:#6b7280;color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.78rem;">Suspend</button>
+                        </form>
+                    </td>
+                </tr>"""
+
+            if not rows:
+                rows = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#777777;">No vendors registered yet.</td></tr>'
+
+            page_html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+            <title>TRY-FIT | Admin — Vendors</title><link rel="stylesheet" href="/static/style.css">
+            <style>body{{display:flex;min-height:100vh;background:var(--background);}}
+            aside{{width:280px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:40px 30px;}}
+            main{{flex:1;padding:60px 80px;overflow-y:auto;}}
+            table{{width:100%;border-collapse:collapse;}}
+            th{{background:#F5F3EF;padding:12px 16px;text-align:left;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;color:#777;border-bottom:1px solid #E5E2DC;}}
+            td{{padding:14px 16px;border-bottom:1px solid #F5F3EF;font-size:0.88rem;}}
+            tr:hover td{{background:#fafaf9;}}
+            </style></head><body>
+            <aside>
+                <a href="/" class="logo" style="font-size:1.8rem;display:block;margin-bottom:4px;">TRY-FIT</a>
+                <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:2px;color:#777777;">Admin Portal</span>
+                <nav style="display:flex;flex-direction:column;gap:12px;margin-top:32px;flex:1;">
+                    <a href="/admin/dashboard" class="btn-text" style="display:block;">Dashboard Overview</a>
+                    <a href="/admin/vendors" class="btn-text" style="display:block;font-weight:700;">Vendor Management</a>
+                    <a href="/admin/catalog" class="btn-text" style="display:block;color:#777;">Manage Catalog</a>
+                    <a href="/admin/users" class="btn-text" style="display:block;color:#777;">User Accounts</a>
+                </nav>
+                <form method="POST" action="/api/logout" style="margin-top:auto;">
+                    <button type="submit" class="btn-secondary" style="width:100%;">Secure Logout</button>
+                </form>
+            </aside>
+            <main>
+                <h1 style="font-size:2.2rem;margin-bottom:8px;">Vendor Management</h1>
+                <p style="color:#777777;margin-bottom:32px;">{len(vendors)} vendor(s) registered</p>
+                {alert_html}
+                <div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+                    <table>
+                        <thead><tr><th>Owner</th><th>Business</th><th>Category</th><th>Location</th><th>Status</th><th>Registered</th><th>Actions</th></tr></thead>
+                        <tbody>{rows}</tbody>
+                    </table>
+                </div>
+            </main>
+            </body></html>"""
+            self.send_html_response(page_html, 200)
+        except Exception as e:
+            self.send_error(500, f"Admin vendors page error: {e}")
+
+    # ═══════════════════════════════════════════════════════════
+    #  VENDOR — HANDLE METHODS (POST)
+    # ═══════════════════════════════════════════════════════════
+
+    def handle_vendor_send_otp(self):
+        """Step 1 of vendor registration: send OTP to business email."""
+        try:
+            data = self.get_post_data()
+            email = str(data.get('email', '')).strip().lower()
+            owner_name = str(data.get('owner_name', '')).strip()
+            mobile = str(data.get('mobile', '')).strip()
+            purpose = 'vendor_register'
+
+            if not email or '@' not in email or '.' not in email:
+                err = "Please enter a valid business email address."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}')
+                self.end_headers()
+                return
+
+            if not owner_name:
+                err = "Owner name is required."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}&email={urllib.parse.quote(email)}&mobile={urllib.parse.quote(mobile)}')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            cursor = conn.cursor()
+
+            # Check if email is already registered as a vendor or user
+            cursor.execute("SELECT id, role FROM users WHERE email = %s", (email,))
+            existing = cursor.fetchone()
+            if existing:
+                if existing['role'] == 'vendor':
+                    conn.close()
+                    err = "This email is already registered as a vendor. Please log in instead."
+                    self.send_response(303)
+                    self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                    self.end_headers()
+                    return
+                else:
+                    conn.close()
+                    err = "This email is already registered as a user. Please use a different email or log in."
+                    self.send_response(303)
+                    self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}')
+                    self.end_headers()
+                    return
+
+            # Rate-limit: max 1 OTP per 30 seconds
+            cursor.execute("""
+                SELECT created_at FROM otp_verifications
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            """, (email, purpose))
+            last_otp = cursor.fetchone()
+            if last_otp:
+                seconds_ago = (datetime.datetime.now() - last_otp['created_at']).total_seconds()
+                if seconds_ago < 30:
+                    conn.close()
+                    wait_secs = int(30 - seconds_ago)
+                    err = f"Please wait {wait_secs} seconds before requesting another code."
+                    redirect_url = f"/vendor/verify-otp?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&error={urllib.parse.quote(err)}"
+                    self.send_response(303)
+                    self.send_header('Location', redirect_url)
+                    self.end_headers()
+                    return
+
+            # Invalidate previous OTPs
+            cursor.execute("""
+                UPDATE otp_verifications SET is_verified = TRUE
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+            """, (email, purpose))
+
+            otp = f"{random.randint(100000, 999999)}"
+            expires_at = datetime.datetime.now() + datetime.timedelta(minutes=5)
+            cursor.execute("""
+                INSERT INTO otp_verifications (email, otp, purpose, expires_at)
+                VALUES (%s, %s, %s, %s)
+            """, (email, otp, purpose, expires_at))
+            conn.commit()
+            conn.close()
+
+            # Send OTP using existing sms.send_gmail_otp
+            success, message = sms.send_gmail_otp(email, otp)
+
+            if success:
+                redirect_url = f"/vendor/verify-otp?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&info={urllib.parse.quote('Verification code sent to ' + email)}"
+                self.send_response(303)
+                self.send_header('Location', redirect_url)
+                self.end_headers()
+            else:
+                err = f"Failed to send OTP: {message}. Please try again."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}&name={urllib.parse.quote(owner_name)}&email={urllib.parse.quote(email)}&mobile={urllib.parse.quote(mobile)}')
+                self.end_headers()
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            err = "Server error. Please try again."
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}')
+            self.end_headers()
+
+    def handle_vendor_verify_otp(self):
+        """Step 2 of vendor registration: verify OTP then redirect to profile setup."""
+        try:
+            data = self.get_post_data()
+            email = str(data.get('email', '')).strip().lower()
+            otp_val = str(data.get('otp', '')).strip()
+            owner_name = str(data.get('owner_name', '')).strip()
+            mobile = str(data.get('mobile', '')).strip()
+            purpose = 'vendor_register'
+
+            if not email or not otp_val or not otp_val.isdigit():
+                err = "Invalid parameters. Please re-enter the OTP."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/verify-otp?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT id, otp, expires_at FROM otp_verifications
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            """, (email, purpose))
+            otp_rec = cursor.fetchone()
+
+            if not otp_rec:
+                conn.close()
+                err = "Verification code not found. Please request a new one."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/verify-otp?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            if otp_rec['otp'] != otp_val:
+                conn.close()
+                err = "Incorrect verification code. Please check and try again."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/verify-otp?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            if otp_rec['expires_at'] < datetime.datetime.now():
+                conn.close()
+                err = "Verification code has expired. Please request a new one."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}&name={urllib.parse.quote(owner_name)}&email={urllib.parse.quote(email)}&mobile={urllib.parse.quote(mobile)}')
+                self.end_headers()
+                return
+
+            cursor.execute("UPDATE otp_verifications SET is_verified = TRUE WHERE id = %s", (otp_rec['id'],))
+            conn.commit()
+            conn.close()
+
+            # OTP verified — redirect to profile setup (no account created yet)
+            redirect_url = f"/vendor/profile-setup?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&info={urllib.parse.quote('Email verified! Complete your business profile to finish registration.')}"
+            self.send_response(303)
+            self.send_header('Location', redirect_url)
+            self.end_headers()
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            err = "Server error during OTP verification."
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/register?error={urllib.parse.quote(err)}')
+            self.end_headers()
+
+    def handle_vendor_create_profile(self):
+        """Step 3 of vendor registration: create user + vendor record."""
+        try:
+            data = self.get_post_data()
+            email = str(data.get('email', '')).strip().lower()
+            owner_name = str(data.get('owner_name', '')).strip()
+            mobile = str(data.get('mobile', '')).strip()
+            business_name = str(data.get('business_name', '')).strip()
+            business_category = str(data.get('business_category', '')).strip()
+            description = str(data.get('description', '')).strip()
+            business_phone = str(data.get('business_phone', '')).strip()
+            business_email = str(data.get('business_email', '')).strip()
+            website = str(data.get('website', '')).strip()
+            address = str(data.get('address', '')).strip()
+            city = str(data.get('city', '')).strip()
+            state = str(data.get('state', '')).strip()
+            pincode = str(data.get('pincode', '')).strip()
+            opening_hours = str(data.get('opening_hours', '09:00')).strip()
+            closing_hours = str(data.get('closing_hours', '21:00')).strip()
+
+            # Parse optional floats for lat/lng
+            try:
+                latitude = float(data.get('latitude', '') or 0) or None
+                longitude = float(data.get('longitude', '') or 0) or None
+            except (ValueError, TypeError):
+                latitude = None
+                longitude = None
+
+            # Validate required
+            missing = []
+            if not business_name: missing.append('Business Name')
+            if not business_category: missing.append('Business Category')
+            if not description: missing.append('Business Description')
+            if not business_phone: missing.append('Business Phone')
+            if not address: missing.append('Address')
+            if not city: missing.append('City')
+            if not state: missing.append('State')
+            if not pincode: missing.append('Pincode')
+
+            if missing:
+                err = f"Required fields missing: {', '.join(missing)}"
+                redirect_url = f"/vendor/profile-setup?email={urllib.parse.quote(email)}&name={urllib.parse.quote(owner_name)}&mobile={urllib.parse.quote(mobile)}&error={urllib.parse.quote(err)}"
+                self.send_response(303)
+                self.send_header('Location', redirect_url)
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            cursor = conn.cursor()
+
+            # Double-check email isn't taken
+            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                conn.close()
+                err = "This email is already registered. Please log in."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            # Create user with vendor role
+            cursor.execute("""
+                INSERT INTO users (name, email, mobile, role, is_verified)
+                VALUES (%s, %s, %s, 'vendor', TRUE)
+            """, (owner_name, email, mobile or None))
+            user_id = cursor.lastrowid
+
+            # Create vendor profile
+            cursor.execute("""
+                INSERT INTO vendors
+                (user_id, business_name, business_category, description,
+                 business_phone, business_email, website,
+                 address, city, state, pincode,
+                 latitude, longitude,
+                 opening_hours, closing_hours,
+                 status)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending')
+            """, (user_id, business_name, business_category, description,
+                  business_phone, business_email or None, website or None,
+                  address, city, state, pincode,
+                  latitude, longitude,
+                  opening_hours, closing_hours))
+
+            # Create session
+            session_id = uuid.uuid4().hex
+            cursor.execute("INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)", (session_id, user_id))
+            conn.commit()
+            conn.close()
+
+            success_msg = urllib.parse.quote("Vendor account created! Your account is under review. You can explore your dashboard while you wait.")
+            self.send_response(303)
+            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+            self.send_header('Location', f'/vendor/dashboard?success={success_msg}')
+            self.end_headers()
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            err = f"Registration failed: {str(e)}"
+            redirect_url = f"/vendor/profile-setup?email={urllib.parse.quote(data.get('email',''))}&name={urllib.parse.quote(data.get('owner_name',''))}&mobile={urllib.parse.quote(data.get('mobile',''))}&error={urllib.parse.quote(err)}"
+            self.send_response(303)
+            self.send_header('Location', redirect_url)
+            self.end_headers()
+
+    def handle_vendor_login_send_otp(self):
+        """Vendor login step 1: send OTP to registered vendor email."""
+        try:
+            data = self.get_post_data()
+            email = str(data.get('email', '')).strip().lower()
+            purpose = 'vendor_login'
+
+            if not email or '@' not in email:
+                err = "Please enter a valid email address."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT id, role FROM users WHERE email = %s", (email,))
+            user = cursor.fetchone()
+
+            if not user or user['role'] != 'vendor':
+                conn.close()
+                err = "No vendor account found with this email. Please register first."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            # Rate-limit
+            cursor.execute("""
+                SELECT created_at FROM otp_verifications
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            """, (email, purpose))
+            last_otp = cursor.fetchone()
+            if last_otp:
+                seconds_ago = (datetime.datetime.now() - last_otp['created_at']).total_seconds()
+                if seconds_ago < 30:
+                    conn.close()
+                    wait_secs = int(30 - seconds_ago)
+                    err = f"Please wait {wait_secs} seconds before requesting another code."
+                    redirect_url = f"/vendor/verify-login-otp?email={urllib.parse.quote(email)}&error={urllib.parse.quote(err)}"
+                    self.send_response(303)
+                    self.send_header('Location', redirect_url)
+                    self.end_headers()
+                    return
+
+            cursor.execute("""
+                UPDATE otp_verifications SET is_verified = TRUE
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+            """, (email, purpose))
+
+            otp = f"{random.randint(100000, 999999)}"
+            expires_at = datetime.datetime.now() + datetime.timedelta(minutes=5)
+            cursor.execute("""
+                INSERT INTO otp_verifications (email, otp, purpose, expires_at)
+                VALUES (%s, %s, %s, %s)
+            """, (email, otp, purpose, expires_at))
+            conn.commit()
+            conn.close()
+
+            success, message = sms.send_gmail_otp(email, otp)
+            if success:
+                redirect_url = f"/vendor/verify-login-otp?email={urllib.parse.quote(email)}&info={urllib.parse.quote('Login code sent to ' + email)}"
+                self.send_response(303)
+                self.send_header('Location', redirect_url)
+                self.end_headers()
+            else:
+                err = f"Failed to send OTP: {message}"
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                self.end_headers()
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/login?error={urllib.parse.quote("Server error")}')
+            self.end_headers()
+
+    def handle_vendor_login_verify_otp(self):
+        """Vendor login step 2: verify OTP and create session."""
+        try:
+            data = self.get_post_data()
+            email = str(data.get('email', '')).strip().lower()
+            otp_val = str(data.get('otp', '')).strip()
+            purpose = 'vendor_login'
+
+            if not email or not otp_val or not otp_val.isdigit():
+                err = "Invalid OTP. Please try again."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/verify-login-otp?email={urllib.parse.quote(email)}&error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT id, otp, expires_at FROM otp_verifications
+                WHERE email = %s AND purpose = %s AND is_verified = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            """, (email, purpose))
+            otp_rec = cursor.fetchone()
+
+            if not otp_rec:
+                conn.close()
+                err = "No active OTP found. Please request a new login code."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/verify-login-otp?email={urllib.parse.quote(email)}&error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            if otp_rec['otp'] != otp_val:
+                conn.close()
+                err = "Incorrect code. Please check and try again."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/verify-login-otp?email={urllib.parse.quote(email)}&error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            if otp_rec['expires_at'] < datetime.datetime.now():
+                conn.close()
+                err = "Code has expired. Please request a new login code."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            cursor.execute("UPDATE otp_verifications SET is_verified = TRUE WHERE id = %s", (otp_rec['id'],))
+            cursor.execute("SELECT id FROM users WHERE email = %s AND role = 'vendor'", (email,))
+            user_rec = cursor.fetchone()
+
+            if not user_rec:
+                conn.close()
+                err = "Vendor account not found. Please register first."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/login?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            session_id = uuid.uuid4().hex
+            cursor.execute("INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)", (session_id, user_rec['id']))
+            conn.commit()
+            conn.close()
+
+            self.send_response(303)
+            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
+            self.send_header('Location', '/vendor/dashboard?success=' + urllib.parse.quote('Welcome back to your vendor dashboard!'))
+            self.end_headers()
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/login?error={urllib.parse.quote("Server error during login")}')
+            self.end_headers()
+
+    def handle_vendor_profile_update(self):
+        """Update vendor business profile."""
+        user = self.get_current_user()
+        if not user or user.get('role') != 'vendor':
+            self.send_response(303)
+            self.send_header('Location', '/vendor/login')
+            self.end_headers()
+            return
+        try:
+            vendor, err = self.require_vendor(user)
+            if err:
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/profile?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            data = self.get_post_data()
+            business_name = str(data.get('business_name', '')).strip()
+            business_category = str(data.get('business_category', '')).strip()
+            description = str(data.get('description', '')).strip()
+            business_phone = str(data.get('business_phone', '')).strip()
+            business_email = str(data.get('business_email', '')).strip()
+            website = str(data.get('website', '')).strip()
+            address = str(data.get('address', '')).strip()
+            city = str(data.get('city', '')).strip()
+            state = str(data.get('state', '')).strip()
+            pincode = str(data.get('pincode', '')).strip()
+            opening_hours = str(data.get('opening_hours', '09:00')).strip()
+            closing_hours = str(data.get('closing_hours', '21:00')).strip()
+            try:
+                latitude = float(data.get('latitude', '') or 0) or None
+                longitude = float(data.get('longitude', '') or 0) or None
+            except Exception:
+                latitude = None
+                longitude = None
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE vendors SET
+                            business_name=%s, business_category=%s, description=%s,
+                            business_phone=%s, business_email=%s, website=%s,
+                            address=%s, city=%s, state=%s, pincode=%s,
+                            latitude=%s, longitude=%s,
+                            opening_hours=%s, closing_hours=%s
+                        WHERE id=%s AND user_id=%s
+                    """, (
+                        business_name, business_category, description,
+                        business_phone, business_email or None, website or None,
+                        address, city, state, pincode,
+                        latitude, longitude,
+                        opening_hours, closing_hours,
+                        vendor['id'], user['id']
+                    ))
+                    conn.commit()
+            finally:
+                conn.close()
+
+            self.send_response(303)
+            self.send_header('Location', '/vendor/profile?success=' + urllib.parse.quote('Business profile updated successfully!'))
+            self.end_headers()
+        except Exception as e:
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/profile?error={urllib.parse.quote(str(e))}')
+            self.end_headers()
+
+    def handle_vendor_product_add(self):
+        """Add a new product for this vendor."""
+        user = self.get_current_user()
+        if not user or user.get('role') != 'vendor':
+            self.send_response(303)
+            self.send_header('Location', '/vendor/login')
+            self.end_headers()
+            return
+        try:
+            vendor, err = self.require_vendor(user)
+            if err:
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/products?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            data = self.get_post_data()
+            name = str(data.get('name', '')).strip()
+            category = str(data.get('category', '')).strip()
+            description = str(data.get('description', '')).strip()
+            image_url = str(data.get('image_url', '')).strip()
+            available_colors = str(data.get('available_colors', 'Black')).strip()
+            brand = str(data.get('brand', '')).strip()
+            material = str(data.get('material', '')).strip()
+
+            try:
+                price = float(data.get('price', 0))
+                trial_price = float(data.get('trial_price', 99))
+                discount_percent = float(data.get('discount_percent', 0))
+                stock = int(data.get('stock', 0))
+            except (ValueError, TypeError):
+                err = "Invalid price or stock value."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/products/add?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            if not name or not category or not description or price <= 0:
+                err = "Name, category, description, and price are required."
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/products/add?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO clothes
+                        (vendor_id, name, category, description, price, trial_price,
+                         discount_percent, stock, available_colors, image_url, brand, material)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (
+                        vendor['id'], name, category, description,
+                        price, trial_price, discount_percent, stock,
+                        available_colors, image_url or '/static/images/placeholder.svg',
+                        brand or None, material or None
+                    ))
+                    conn.commit()
+                    # Bust catalog cache
+                    with _CACHE_LOCK:
+                        _CATALOG_CACHE.clear()
+            finally:
+                conn.close()
+
+            self.send_response(303)
+            self.send_header('Location', '/vendor/products?success=' + urllib.parse.quote(f'Product "{name}" added successfully!'))
+            self.end_headers()
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/products/add?error={urllib.parse.quote(str(e))}')
+            self.end_headers()
+
+    def handle_vendor_product_delete(self):
+        """Delete a product — only if it belongs to this vendor."""
+        user = self.get_current_user()
+        if not user or user.get('role') != 'vendor':
+            self.send_response(303)
+            self.send_header('Location', '/vendor/login')
+            self.end_headers()
+            return
+        try:
+            vendor, err = self.require_vendor(user)
+            if err:
+                self.send_response(303)
+                self.send_header('Location', f'/vendor/products?error={urllib.parse.quote(err)}')
+                self.end_headers()
+                return
+
+            data = self.get_post_data()
+            product_id = data.get('product_id')
+
+            if not product_id:
+                self.send_response(303)
+                self.send_header('Location', '/vendor/products?error=' + urllib.parse.quote('Product ID is required.'))
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    # Security: verify product belongs to this vendor
+                    cur.execute("SELECT id FROM clothes WHERE id=%s AND vendor_id=%s", (product_id, vendor['id']))
+                    product = cur.fetchone()
+                    if not product:
+                        conn.rollback()
+                        self.send_response(303)
+                        self.send_header('Location', '/vendor/products?error=' + urllib.parse.quote('Product not found or you do not have permission to delete it.'))
+                        self.end_headers()
+                        return
+                    cur.execute("DELETE FROM clothes WHERE id=%s AND vendor_id=%s", (product_id, vendor['id']))
+                    conn.commit()
+                    with _CACHE_LOCK:
+                        _CATALOG_CACHE.clear()
+            finally:
+                conn.close()
+
+            self.send_response(303)
+            self.send_header('Location', '/vendor/products?success=' + urllib.parse.quote('Product deleted successfully.'))
+            self.end_headers()
+        except Exception as e:
+            self.send_response(303)
+            self.send_header('Location', f'/vendor/products?error={urllib.parse.quote(str(e))}')
+            self.end_headers()
+
+    def handle_admin_vendor_action(self, new_status):
+        """Admin: approve / reject / suspend a vendor."""
+        user = self.get_current_user()
+        if not user or user.get('role') != 'admin':
+            self.send_response(303)
+            self.send_header('Location', '/admin/login')
+            self.end_headers()
+            return
+        try:
+            data = self.get_post_data()
+            vendor_id = data.get('vendor_id')
+            if not vendor_id:
+                self.send_response(303)
+                self.send_header('Location', '/admin/vendors?error=' + urllib.parse.quote('Vendor ID missing.'))
+                self.end_headers()
+                return
+
+            conn = db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("UPDATE vendors SET status=%s WHERE id=%s", (new_status, vendor_id))
+                    conn.commit()
+            finally:
+                conn.close()
+
+            self.send_response(303)
+            self.send_header('Location', '/admin/vendors?success=' + urllib.parse.quote(f'Vendor status updated to {new_status}.'))
+            self.end_headers()
+        except Exception as e:
+            self.send_response(303)
+            self.send_header('Location', f'/admin/vendors?error={urllib.parse.quote(str(e))}')
+            self.end_headers()
 
 def run_server():
     db.init_db()

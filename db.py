@@ -858,6 +858,67 @@ def init_db():
         except Exception as fk_err:
             print(f"Notice during foreign key verification: {fk_err}")
 
+        # -----------------------------------------------------
+        # VENDOR MIGRATIONS (safe — never drops existing data)
+        # -----------------------------------------------------
+
+        # 1. Add mobile column to users if missing
+        cursor.execute("SHOW COLUMNS FROM users LIKE 'mobile'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN mobile VARCHAR(20) NULL AFTER email")
+            print("Migration: added users.mobile column")
+
+        # 2. Add is_verified column to users if missing
+        cursor.execute("SHOW COLUMNS FROM users LIKE 'is_verified'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE AFTER role")
+            cursor.execute("UPDATE users SET is_verified = TRUE WHERE role IN ('user', 'admin')")
+            print("Migration: added users.is_verified column")
+
+        # 3. Add updated_at column to users if missing
+        cursor.execute("SHOW COLUMNS FROM users LIKE 'updated_at'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at")
+            print("Migration: added users.updated_at column")
+
+        # 4. Add vendor_id to clothes if missing (NULL = platform product)
+        cursor.execute("SHOW COLUMNS FROM clothes LIKE 'vendor_id'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE clothes ADD COLUMN vendor_id INT NULL DEFAULT NULL AFTER id")
+            print("Migration: added clothes.vendor_id column")
+
+        # 5. Create vendors table if not exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS vendors (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL UNIQUE,
+                business_name VARCHAR(200) NOT NULL,
+                business_category VARCHAR(100) DEFAULT 'Fashion Store',
+                description TEXT,
+                business_phone VARCHAR(20) NOT NULL,
+                business_email VARCHAR(100) NULL,
+                website VARCHAR(255) NULL,
+                address TEXT NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                state VARCHAR(100) NOT NULL,
+                pincode VARCHAR(10) NOT NULL,
+                latitude DECIMAL(10, 8) NULL,
+                longitude DECIMAL(11, 8) NULL,
+                logo VARCHAR(500) NULL,
+                opening_hours VARCHAR(50) NULL DEFAULT '09:00',
+                closing_hours VARCHAR(50) NULL DEFAULT '21:00',
+                status ENUM('pending', 'approved', 'rejected', 'suspended') DEFAULT 'pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+        print("Vendors table ready.")
+
+        # 6. Create vendor_otp_verifications table (reuses same otp_verifications but adds vendor_ purpose)
+        # Actually reuse existing otp_verifications with purpose='vendor_register' / 'vendor_login'
+        # No extra table needed.
+
         conn.commit()
 
         # -----------------------------------------------------

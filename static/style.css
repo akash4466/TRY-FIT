@@ -39,7 +39,11 @@ html {
     -webkit-tap-highlight-color: transparent;
 }
 
-a, button, input, select, textarea {
+a,
+button,
+input,
+select,
+textarea {
     touch-action: manipulation;
 }
 
@@ -54,7 +58,12 @@ body {
     overflow-x: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: var(--font-serif);
     font-weight: 500;
     color: var(--primary);
@@ -462,10 +471,12 @@ img {
     align-items: flex-end;
     gap: 5px;
 }
+
 .cart-icon {
     font-size: 1.8rem;
     line-height: 1;
 }
+
 .cart-count {
     position: absolute;
     top: -8px;
@@ -528,6 +539,7 @@ img {
         width: 170px;
         flex: 0 1 170px;
     }
+
     .nav-menu-link {
         font-size: 0.74rem;
         padding: 5px 6px;
@@ -535,23 +547,35 @@ img {
 }
 
 @media (max-width: 1024px) {
-    .nav-menu { display: none; }
-    .nav-left .nav-link { display: none; }
-    .mobile-menu-btn { display: block; }
+    .nav-menu {
+        display: none;
+    }
+
+    .nav-left .nav-link {
+        display: none;
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+
     .logo {
         font-size: 1.45rem;
         letter-spacing: 2.5px;
     }
+
     .search-form {
         width: 160px;
         flex: 0 1 160px;
         height: 36px;
         padding: 2px 3px 2px 10px;
     }
+
     .search-btn {
         width: 28px;
         height: 28px;
     }
+
     .search-btn svg {
         width: 14px;
         height: 14px;
@@ -562,27 +586,33 @@ img {
     .main-header {
         height: 64px;
     }
+
     .logo {
         font-size: 1.3rem;
         letter-spacing: 2px;
     }
+
     .search-form {
         width: 130px;
         flex: 0 1 130px;
         height: 34px;
         padding: 2px 3px 2px 8px;
     }
+
     .search-btn {
         width: 26px;
         height: 26px;
     }
+
     .search-btn svg {
         width: 12px;
         height: 12px;
     }
+
     .nav-link-small {
         display: none;
     }
+
     .nav-back-btn {
         padding: 5px 8px;
         font-size: 0.72rem;
@@ -767,8 +797,15 @@ img {
 }
 
 @media (max-width: 1024px) {
-    .hero-bg { width: 100%; opacity: 0.3; }
-    .hero-content { background: transparent; padding: 40px 20px; }
+    .hero-bg {
+        width: 100%;
+        opacity: 0.3;
+    }
+
+    .hero-content {
+        background: transparent;
+        padding: 40px 20px;
+    }
 }
 
 .hero-title {
@@ -791,8 +828,13 @@ img {
 }
 
 @media (max-width: 640px) {
-    .hero-title { font-size: 2.8rem; }
-    .hero-actions { flex-direction: column; }
+    .hero-title {
+        font-size: 2.8rem;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+    }
 }
 
 /* ==================================================
@@ -834,7 +876,9 @@ img {
     scrollbar-width: none;
 }
 
-.category-tabs::-webkit-scrollbar { display: none; }
+.category-tabs::-webkit-scrollbar {
+    display: none;
+}
 
 .cat-tab {
     background: none;
@@ -852,7 +896,8 @@ img {
     transition: var(--transition-fast);
 }
 
-.cat-tab:hover, .cat-tab.active {
+.cat-tab:hover,
+.cat-tab.active {
     color: var(--primary);
     font-weight: 600;
 }
@@ -877,9 +922,23 @@ img {
     margin-top: 40px;
 }
 
-@media (max-width: 1280px) { .products-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 900px) { .products-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .products-grid { gap: 30px 16px; } }
+@media (max-width: 1280px) {
+    .products-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .products-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .products-grid {
+        gap: 30px 16px;
+    }
+}
 
 .product-card {
     display: flex;
@@ -1012,7 +1071,7 @@ img {
     display: grid;
     grid-template-columns: minmax(360px, 1fr) 1.2fr;
     position: relative;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
@@ -1090,7 +1149,8 @@ img {
     transition: var(--transition-fast);
 }
 
-.size-btn:hover, .size-btn.active {
+.size-btn:hover,
+.size-btn.active {
     border-color: var(--primary);
     background: var(--primary);
     color: var(--white);
@@ -1107,7 +1167,10 @@ img {
 }
 
 @media (max-width: 1024px) {
-    .booking-grid { grid-template-columns: 1fr; gap: 40px; }
+    .booking-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
 }
 
 .checkout-card {
@@ -1166,8 +1229,17 @@ img {
     margin-top: 40px;
 }
 
-@media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
 
 .stat-card {
     background: var(--background);
@@ -1201,7 +1273,9 @@ img {
 }
 
 @media (max-width: 640px) {
-    .trial-card { flex-direction: column; }
+    .trial-card {
+        flex-direction: column;
+    }
 }
 
 .trial-card img {
@@ -1230,9 +1304,17 @@ img {
     border-radius: 50%;
 }
 
-.status-active::before { background: #10B981; }
-.status-bought::before { background: var(--primary); }
-.status-returned::before { background: var(--muted); }
+.status-active::before {
+    background: #10B981;
+}
+
+.status-bought::before {
+    background: var(--primary);
+}
+
+.status-returned::before {
+    background: var(--muted);
+}
 
 /* ==================================================
    FORMS & AUTH
@@ -1339,17 +1421,36 @@ img {
     animation: slideUpCenter 0.3s ease forwards;
 }
 
-.toast-alert.error { background: #DC2626; }
-.toast-alert.success { background: #10B981; }
+.toast-alert.error {
+    background: #DC2626;
+}
+
+.toast-alert.success {
+    background: #10B981;
+}
 
 @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 @keyframes slideUpCenter {
-    from { transform: translate(-50%, 20px); opacity: 0; }
-    to { transform: translate(-50%, 0); opacity: 1; }
+    from {
+        transform: translate(-50%, 20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
 }
 
 /* ==================================================
@@ -1370,10 +1471,16 @@ img {
 }
 
 @media (max-width: 900px) {
-    .footer-grid { grid-template-columns: 1fr 1fr; }
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
 }
+
 @media (max-width: 480px) {
-    .footer-grid { grid-template-columns: 1fr; gap: 40px; }
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
 }
 
 .footer-col h4 {
@@ -1414,17 +1521,17 @@ img {
 }
 
 /* Slide Menu Toggle */
-#menu-toggle:checked ~ #megaMenu {
+#menu-toggle:checked~#megaMenu {
     opacity: 1;
     pointer-events: auto;
 }
 
-#menu-toggle:checked ~ #megaMenu .slide-menu {
+#menu-toggle:checked~#megaMenu .slide-menu {
     transform: translateX(0);
 }
 
 /* Search Modal Toggle */
-#search-toggle:checked ~ #searchModal {
+#search-toggle:checked~#searchModal {
     opacity: 1;
     pointer-events: auto;
 }
@@ -1449,13 +1556,25 @@ img {
 }
 
 @media (max-width: 1024px) {
-    .category-layout { grid-template-columns: 220px 1fr; gap: 30px; }
-    .cart-layout { grid-template-columns: 1fr; }
+    .category-layout {
+        grid-template-columns: 220px 1fr;
+        gap: 30px;
+    }
+
+    .cart-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
-    .category-layout { grid-template-columns: 1fr; }
-    .filters-sidebar { display: none; /* In real app, this would be a toggle */ }
+    .category-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .filters-sidebar {
+        display: none;
+        /* In real app, this would be a toggle */
+    }
 }
 
 .nav-right .nav-link {
@@ -1598,7 +1717,10 @@ img {
 /* 3D Logout Modal Styles */
 .logout-modal-overlay {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     display: flex;
@@ -1625,7 +1747,7 @@ img {
     transform: perspective(600px) rotateX(20deg) scale(0.9);
     opacity: 0;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 15px 35px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.1);
     border: 1px solid var(--border);
 }
 
@@ -1668,23 +1790,23 @@ img {
 .btn-3d-cancel {
     background-color: #f1f5f9;
     color: #475569;
-    box-shadow: 0 6px 0 #cbd5e1, 0 8px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 0 #cbd5e1, 0 8px 10px rgba(0, 0, 0, 0.1);
 }
 
 .btn-3d-cancel:active {
     transform: translateY(6px);
-    box-shadow: 0 0px 0 #cbd5e1, 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 0px 0 #cbd5e1, 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-3d-ok {
     background-color: #ef4444;
     color: white;
-    box-shadow: 0 6px 0 #b91c1c, 0 8px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 0 #b91c1c, 0 8px 10px rgba(0, 0, 0, 0.2);
 }
 
 .btn-3d-ok:active {
     transform: translateY(6px);
-    box-shadow: 0 0px 0 #b91c1c, 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 0px 0 #b91c1c, 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* ==================================================
@@ -1694,7 +1816,8 @@ img {
     position: relative;
     height: 85vh;
     min-height: 600px;
-    background-color: #050914; /* Dark fallback */
+    background-color: #050914;
+    /* Dark fallback */
     display: flex;
     align-items: center;
     overflow: hidden;
@@ -1739,7 +1862,8 @@ img {
     z-index: 10;
     max-width: 600px;
     padding: 60px 40px;
-    margin-left: 5%; /* Align to the left to leave space on the right for the gift box */
+    margin-left: 5%;
+    /* Align to the left to leave space on the right for the gift box */
 }
 
 @media (max-width: 768px) {
@@ -1770,7 +1894,9 @@ img {
 }
 
 @media (max-width: 640px) {
-    .offer-title { font-size: 2.8rem; }
+    .offer-title {
+        font-size: 2.8rem;
+    }
 }
 
 .offer-subtitle {
@@ -1788,7 +1914,9 @@ img {
 }
 
 @media (max-width: 640px) {
-    .offer-actions { flex-direction: column; }
+    .offer-actions {
+        flex-direction: column;
+    }
 }
 
 .offer-btn-primary {
@@ -1853,13 +1981,23 @@ body.page-fade-out {
 }
 
 @keyframes pageFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes pageFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
 }
 
 .scroll-anim {
@@ -1884,7 +2022,7 @@ body.page-fade-out {
     color: #ffffff;
     padding: 12px 22px;
     border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
     font-family: var(--font-sans);
     font-size: 0.88rem;
     font-weight: 500;
@@ -2055,9 +2193,11 @@ body.page-fade-out {
     0% {
         box-shadow: 0 0 0 rgba(176, 141, 87, 0);
     }
+
     50% {
         box-shadow: 0 8px 30px rgba(176, 141, 87, 0.35);
     }
+
     100% {
         box-shadow: var(--shadow-subtle);
     }
@@ -2073,13 +2213,16 @@ body.page-fade-out {
         flex-direction: column;
         align-items: flex-start;
     }
+
     .catalog-sort-controls {
         width: 100%;
         justify-content: space-between;
     }
+
     .sort-pills-container {
         display: none;
     }
+
     .luxury-sort-dropdown {
         width: 100%;
     }
@@ -2221,4 +2364,165 @@ body.page-fade-out {
     text-underline-offset: 3px;
 }
 
+/* ==================================================
+   LUXURY SCROLL BLEND & POP-UP ANIMATION SYSTEM
+   ================================================== */
+.scroll-anim {
+    opacity: 0;
+    transform: translateY(42px) scale(0.92);
+    filter: blur(8px);
+    will-change: opacity, transform, filter;
+    transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.35s ease,
+                border-color 0.25s ease;
+}
 
+/* Revealed State: pops up into place & blurs into crystal-clear focus */
+.scroll-anim.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+}
+
+/* Staggered Delay for sequential grid items */
+.products-grid .product-card.scroll-anim:nth-child(4n+1),
+.step-card.scroll-anim:nth-child(4n+1),
+.trials-grid .trial-card.scroll-anim:nth-child(4n+1) {
+    transition-delay: 0.04s;
+}
+
+.products-grid .product-card.scroll-anim:nth-child(4n+2),
+.step-card.scroll-anim:nth-child(4n+2),
+.trials-grid .trial-card.scroll-anim:nth-child(4n+2) {
+    transition-delay: 0.12s;
+}
+
+.products-grid .product-card.scroll-anim:nth-child(4n+3),
+.step-card.scroll-anim:nth-child(4n+3),
+.trials-grid .trial-card.scroll-anim:nth-child(4n+3) {
+    transition-delay: 0.20s;
+}
+
+.products-grid .product-card.scroll-anim:nth-child(4n+4),
+.step-card.scroll-anim:nth-child(4n+4),
+.trials-grid .trial-card.scroll-anim:nth-child(4n+4) {
+    transition-delay: 0.28s;
+}
+
+/* Individual Headings and Bars - subtle pop-up */
+h2.scroll-anim,
+.catalog-sort-bar.scroll-anim {
+    transform: translateY(28px) scale(0.96);
+    filter: blur(5px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+h2.scroll-anim.visible,
+.catalog-sort-bar.scroll-anim.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+}
+
+/* Footer columns blend pop-up */
+.footer-col.scroll-anim {
+    transform: translateY(24px) scale(0.96);
+    filter: blur(5px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.footer-col.scroll-anim:nth-child(1) { transition-delay: 0.05s; }
+.footer-col.scroll-anim:nth-child(2) { transition-delay: 0.12s; }
+.footer-col.scroll-anim:nth-child(3) { transition-delay: 0.19s; }
+.footer-col.scroll-anim:nth-child(4) { transition-delay: 0.26s; }
+
+.footer-col.scroll-anim.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+}
+
+/* How It Works Steps Pop-up Styling */
+.step-card {
+    background: var(--white);
+    padding: 38px 24px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    text-align: center;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    transition: var(--transition-smooth);
+}
+
+.step-card .step-num {
+    font-family: var(--font-serif);
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 14px;
+    letter-spacing: -1px;
+    opacity: 0.9;
+}
+
+.step-card h3 {
+    font-size: 1.22rem;
+    margin-bottom: 10px;
+    color: var(--primary);
+}
+
+.step-card p {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+/* Hover recovery after pop-up visible */
+.product-card.scroll-anim.visible:hover {
+    transform: translateY(-8px) scale(1.015);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary);
+    filter: blur(0);
+}
+
+.step-card.scroll-anim.visible:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+    border-color: var(--primary);
+    filter: blur(0);
+}
+
+.trial-card.scroll-anim {
+    opacity: 0;
+    transform: translateY(32px) scale(0.95);
+    filter: blur(6px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.trial-card.scroll-anim.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+}
+
+.trial-card.scroll-anim.visible:hover {
+    transform: translateY(-4px);
+    filter: blur(0);
+}
+
+/* Accessibility: Respect Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+    .scroll-anim {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+        transition: none !important;
+    }
+}

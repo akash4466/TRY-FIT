@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRY-FIT | Business Profile</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .vendor-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #F5F3EF;
+            border: 1px solid #E5E2DC;
+            border-radius: 9999px;
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #111111;
+            margin-bottom: 20px;
+        }
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .step-dot { width: 10px; height: 10px; border-radius: 50%; background: #E5E2DC; transition: background 0.3s; }
+        .step-dot.done { background: #4ade80; }
+        .step-dot.active { background: #111111; transform: scale(1.3); }
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0 20px;
+        }
+        .section-divider::before, .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #E5E2DC;
+        }
+        .section-divider span {
+            font-size: 0.75rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #777777;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .loc-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #111111;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 16px;
+        }
+        .loc-btn:hover { background: #333; }
+        .loc-status {
+            font-size: 0.82rem;
+            padding: 8px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .loc-status.success { background: rgba(74, 222, 128, 0.1); color: #16a34a; border: 1px solid rgba(74,222,128,0.3); display: block; }
+        .loc-status.error { background: rgba(239,68,68,0.08); color: #dc2626; border: 1px solid rgba(239,68,68,0.2); display: block; }
+        .optional-label { color: #777777; font-size: 0.78rem; }
+        .profile-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 18px;
+        }
+        @media (max-width: 600px) {
+            .profile-form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh; background: var(--background);">
+
+    <header class="main-header" style="position: static; border-bottom: none;">
+        <div class="container nav-wrapper">
+            <div class="nav-left"></div>
+            <div class="nav-center"><a href="/" class="logo" style="font-size: 2rem;">TRY-FIT</a></div>
+            <div class="nav-right"></div>
+        </div>
+    </header>
+
+    <main class="container" style="flex: 1; padding: 40px 20px; max-width: 760px; margin: 0 auto;">
+
+        {{ERROR_ALERT}}
+        {{INFO_ALERT}}
+
+        <div style="text-align: center; margin-bottom: 36px;">
+            <div class="vendor-badge"><span>🏪</span><span>Business Profile</span></div>
+            <h1 style="font-family: var(--font-serif); font-size: 2.2rem; margin-bottom: 8px;">Business Information</h1>
+            <p style="color: var(--muted); font-size: 0.95rem;">Complete your business profile to activate your vendor account</p>
+        </div>
+
+        <div class="step-indicator">
+            <div class="step-dot done"></div>
+            <div style="height: 1px; width: 30px; background: #E5E2DC;"></div>
+            <div class="step-dot done"></div>
+            <div style="height: 1px; width: 30px; background: #E5E2DC;"></div>
+            <div class="step-dot active"></div>
+        </div>
+        <p style="text-align:center; color: var(--muted); font-size: 0.78rem; margin-bottom: 36px; letter-spacing: 1px; text-transform: uppercase;">Step 3 of 3 — Business Profile</p>
+
+        <div style="background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px 40px 36px;">
+            <form method="POST" action="/api/vendor/create-profile" autocomplete="off" id="profileForm" enctype="multipart/form-data">
+                <input type="hidden" name="email" value="{{EMAIL}}">
+                <input type="hidden" name="owner_name" value="{{OWNER_NAME}}">
+                <input type="hidden" name="mobile" value="{{MOBILE}}">
+
+                <!-- Business Name & Category -->
+                <div class="profile-form-grid">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Name <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="business_name" class="form-control" required placeholder="e.g. Fashion Hub by Rahul">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Category <span style="color:#e11d48;">*</span></label>
+                        <select name="business_category" class="form-control" required>
+                            <option value="">Select category...</option>
+                            <option value="Men's Clothing">Men's Clothing</option>
+                            <option value="Women's Clothing">Women's Clothing</option>
+                            <option value="Kids Clothing">Kids Clothing</option>
+                            <option value="Fashion Store">Fashion Store</option>
+                            <option value="Clothing Manufacturer">Clothing Manufacturer</option>
+                            <option value="Boutique">Boutique</option>
+                            <option value="Fashion Brand">Fashion Brand</option>
+                            <option value="Accessories">Accessories &amp; Footwear</option>
+                            <option value="Ethnic Wear">Ethnic Wear</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Business Description <span style="color:#e11d48;">*</span></label>
+                    <textarea name="description" class="form-control" required rows="3" placeholder="Briefly describe your business, products, and what makes you unique..." style="resize: vertical;"></textarea>
+                </div>
+
+                <!-- Phone & Business Email -->
+                <div class="profile-form-grid">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Phone <span style="color:#e11d48;">*</span></label>
+                        <input type="tel" name="business_phone" class="form-control" required placeholder="+91 98765 43210" value="{{MOBILE}}">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Business Email <span class="optional-label">(optional)</span></label>
+                        <input type="email" name="business_email" class="form-control" placeholder="business@example.com" value="{{EMAIL}}">
+                    </div>
+                </div>
+
+                <!-- Website -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Website <span class="optional-label">(optional)</span></label>
+                    <input type="url" name="website" class="form-control" placeholder="https://yourwebsite.com">
+                </div>
+
+                <!-- LOCATION SECTION -->
+                <div class="section-divider"><span>Business Location</span></div>
+
+                <div id="locStatus" class="loc-status"></div>
+
+                <button type="button" class="loc-btn" id="getLocationBtn" onclick="getMyLocation()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path></svg>
+                    Use My Business Location
+                </button>
+                <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px;">Or enter your address manually below. Location permission is optional.</p>
+
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label">Business Address <span style="color:#e11d48;">*</span></label>
+                    <input type="text" name="address" id="address" class="form-control" required placeholder="Street address, building, area">
+                </div>
+
+                <div class="profile-form-grid">
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label class="form-label">City <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="city" id="city" class="form-control" required placeholder="Mumbai">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label class="form-label">State <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="state" id="state" class="form-control" required placeholder="Maharashtra">
+                    </div>
+                </div>
+
+                <div class="profile-form-grid">
+                    <div class="form-group" style="margin-bottom: 18px;">
+                        <label class="form-label">Pincode <span style="color:#e11d48;">*</span></label>
+                        <input type="text" name="pincode" id="pincode" class="form-control" required placeholder="400001" maxlength="6" pattern="[0-9]{6}">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap: 10px;">
+                        <div class="form-group" style="margin-bottom: 18px;">
+                            <label class="form-label">Latitude <span class="optional-label">(auto)</span></label>
+                            <input type="number" name="latitude" id="latitude" class="form-control" step="any" placeholder="18.9388" readonly style="background:#F5F3EF;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 18px;">
+                            <label class="form-label">Longitude <span class="optional-label">(auto)</span></label>
+                            <input type="number" name="longitude" id="longitude" class="form-control" step="any" placeholder="72.8354" readonly style="background:#F5F3EF;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hours -->
+                <div class="section-divider"><span>Business Hours (Optional)</span></div>
+                <div class="profile-form-grid">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Opening Time</label>
+                        <input type="time" name="opening_hours" class="form-control" value="09:00">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label">Closing Time</label>
+                        <input type="time" name="closing_hours" class="form-control" value="21:00">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; height: 54px; font-size: 1.05rem; letter-spacing: 1.5px; margin-top: 10px;" id="submitBtn">
+                    Create Vendor Account
+                </button>
+
+                <p style="text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 16px; line-height: 1.5;">
+                    By creating an account, you agree to TRY-FIT's Vendor Terms. Your account will be reviewed and activated within 1–2 business days.
+                </p>
+            </form>
+        </div>
+    </main>
+
+    <script>
+    function getMyLocation() {
+        var status = document.getElementById('locStatus');
+        var btn = document.getElementById('getLocationBtn');
+
+        if (!navigator.geolocation) {
+            status.className = 'loc-status error';
+            status.textContent = 'Geolocation is not supported by your browser. Please enter address manually.';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Getting location...';
+        status.className = 'loc-status';
+        status.style.display = 'none';
+
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                document.getElementById('latitude').value = pos.coords.latitude.toFixed(8);
+                document.getElementById('longitude').value = pos.coords.longitude.toFixed(8);
+                status.className = 'loc-status success';
+                status.textContent = '✓ Location captured: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6) + '. Please fill in the address fields manually.';
+                btn.textContent = 'Location Captured ✓';
+                btn.style.background = '#16a34a';
+            },
+            function(err) {
+                btn.disabled = false;
+                btn.textContent = 'Use My Business Location';
+                status.className = 'loc-status error';
+                var msgs = {
+                    1: 'Location permission denied. Please enter your address manually below.',
+                    2: 'Location unavailable. Please enter your address manually.',
+                    3: 'Location request timed out. Please enter your address manually.'
+                };
+                status.textContent = msgs[err.code] || 'Could not get location. Please enter address manually.';
+            },
+            { timeout: 10000, enableHighAccuracy: true }
+        );
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', function() {
+        var btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.textContent = 'Creating Account...';
+    });
+
+    // Pincode validation
+    document.querySelector('input[name="pincode"]').addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    });
+    </script>
+</body>
+</html>

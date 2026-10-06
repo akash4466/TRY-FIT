@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SDLC Model – TRY-FIT Clothing | BCA SEM 5</title>
+  <meta name="description" content="Software Development Life Cycle (SDLC) model for TRY-FIT Clothing project by Akash Pol, Keyur Vagadiya and Harsh Vara – BCA SEM 5." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: rgba(255,255,255,0.08);
+      --text: #e8edf5;
+      --muted: #8a97b0;
+      --planning:   #4f8ef7;
+      --req:        #f47e42;
+      --design:     #e85d5d;
+      --coding:     #5ecb6e;
+      --testing:    #9b6fd4;
+      --deployment: #3ec9d6;
+      --doc:        #f0a835;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #2a3a5a; border-radius: 3px; }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      padding: 80px 24px 60px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(79,142,247,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(79,142,247,0.15);
+      border: 1px solid rgba(79,142,247,0.4);
+      color: #4f8ef7;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 6px 18px; border-radius: 100px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #e8edf5 30%, #4f8ef7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15; margin-bottom: 16px;
+    }
+    .hero p {
+      color: var(--muted); font-size: 16px;
+      max-width: 560px; margin: 0 auto 32px; line-height: 1.7;
+    }
+    .timeline-label {
+      display: inline-flex; gap: 10px; align-items: center;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 20px;
+      font-size: 14px; color: var(--muted);
+    }
+    .timeline-label span { color: var(--text); font-weight: 600; }
+
+    /* ── SHARED ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .section-title { text-align: center; margin-bottom: 48px; }
+    .section-title h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      font-weight: 700; margin-bottom: 10px;
+    }
+    .section-title p { color: var(--muted); font-size: 15px; }
+
+    /* ── OVERVIEW BAR ── */
+    .overview-section {
+      padding: 40px 0 60px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .overview-bar {
+      display: flex; height: 56px;
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    .overview-segment {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      cursor: pointer; position: relative; overflow: visible;
+      transition: filter 0.2s;
+    }
+    .overview-segment:hover { filter: brightness(1.2); }
+    .overview-segment .seg-label { font-size: 11px; text-shadow: 0 1px 4px rgba(0,0,0,.5); white-space: nowrap; }
+    .seg-tooltip {
+      position: absolute; bottom: calc(100% + 10px);
+      left: 50%; transform: translateX(-50%);
+      background: #1a2235; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 8px 12px;
+      font-size: 12px; color: #fff; white-space: nowrap;
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.2s; z-index: 10;
+    }
+    .overview-segment:hover .seg-tooltip { opacity: 1; }
+
+    /* ══════════════════════════════════════
+       PIE CHART — PROPER SVG
+    ══════════════════════════════════════ */
+    .chart-section {
+      padding: 70px 0;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--surface) 100%);
+    }
+    .charts-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 56px;
+      flex-wrap: wrap;
+    }
+
+    /* SVG pie */
+    .pie-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 24px;
+    }
+    .pie-svg-container {
+      position: relative;
+      width: 320px; height: 320px;
+    }
+    #sdlcPie {
+      width: 100%; height: 100%;
+      filter: drop-shadow(0 10px 40px rgba(0,0,0,0.6));
+      overflow: visible;
+    }
+    .pie-slice {
+      cursor: pointer;
+      transform-origin: center;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), filter 0.3s;
+      transform-box: fill-box;
+    }
+    .pie-slice:hover {
+      transform: scale(1.06);
+      filter: brightness(1.25) drop-shadow(0 0 12px currentColor);
+    }
+    .pie-slice.active {
+      transform: scale(1.08);
+      filter: brightness(1.3) drop-shadow(0 0 16px currentColor);
+    }
+
+    /* Donut center */
+    .pie-center-label {
+      position: absolute;
+      inset: 0; display: flex;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .pie-center-pct {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px; font-weight: 800;
+      color: var(--text);
+      transition: all 0.3s;
+    }
+    .pie-center-name {
+      font-size: 12px; color: var(--muted);
+      text-align: center; max-width: 100px;
+      transition: all 0.3s;
+    }
+
+    /* Tooltip floating */
+    #pieTooltip {
+      position: fixed;
+      background: rgba(15,22,40,0.95);
+      border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px);
+      border-radius: 12px; padding: 12px 16px;
+      font-size: 13px; pointer-events: none;
+      opacity: 0; transition: opacity 0.2s;
+      z-index: 1000; min-width: 160px;
+    }
+    #pieTooltip.visible { opacity: 1; }
+    #pieTooltip .tt-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    #pieTooltip .tt-pct  { font-size: 22px; font-weight: 800; font-family:'Outfit',sans-serif; }
+    #pieTooltip .tt-days { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* Legend */
+    .legend { display: flex; flex-direction: column; gap: 12px; min-width: 260px; }
+    .legend-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .legend-item:hover, .legend-item.active {
+      border-color: var(--item-color, rgba(255,255,255,.3));
+      transform: translateX(4px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.04);
+    }
+    .legend-dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+    .legend-text { flex: 1; }
+    .legend-text .name { font-size: 13px; font-weight: 600; }
+    .legend-text .sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .legend-pct { font-size: 18px; font-weight: 800; font-family:'Outfit',sans-serif; }
+
+    /* ══════════════════════════════════════
+       BAR CHART
+    ══════════════════════════════════════ */
+    .bar-section {
+      padding: 60px 0 70px;
+      background: var(--bg);
+    }
+    .bar-chart {
+      display: flex; flex-direction: column; gap: 18px;
+      max-width: 820px; margin: 0 auto;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 56px;
+      align-items: center;
+      gap: 14px;
+    }
+    .bar-label {
+      font-size: 13px; font-weight: 600;
+      color: var(--text);
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .bar-track {
+      height: 32px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      width: 0;
+      transition: width 1.2s cubic-bezier(0.22,1,0.36,1);
+      position: relative;
+      display: flex; align-items: center;
+      padding-left: 12px;
+    }
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .bar-inner-label {
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      white-space: nowrap;
+      position: relative; z-index: 1;
+    }
+    .bar-days {
+      font-size: 13px; font-weight: 700;
+      color: var(--muted);
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* ══════════════════════════════════════
+       PHASE CARDS
+    ══════════════════════════════════════ */
+    .phases-section { padding: 60px 0 80px; background: var(--surface); }
+    .phases-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .phase-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px; padding: 28px;
+      position: relative; overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: fade-up 0.6s ease both;
+    }
+    .phase-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .phase-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--phase-color, #4f8ef7);
+      border-radius: 20px 20px 0 0;
+    }
+    .phase-card::after {
+      content: '';
+      position: absolute; top: -60px; right: -60px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: radial-gradient(circle, var(--phase-color, #4f8ef7) 0%, transparent 70%);
+      opacity: 0.07; pointer-events: none;
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .phase-card:nth-child(1){animation-delay:.05s}
+    .phase-card:nth-child(2){animation-delay:.10s}
+    .phase-card:nth-child(3){animation-delay:.15s}
+    .phase-card:nth-child(4){animation-delay:.20s}
+    .phase-card:nth-child(5){animation-delay:.25s}
+    .phase-card:nth-child(6){animation-delay:.30s}
+    .phase-card:nth-child(7){animation-delay:.35s}
+
+    .phase-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    .phase-num {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--phase-color, #4f8ef7);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800; font-family: 'Outfit', sans-serif;
+      color: #fff; flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .phase-meta { flex: 1; }
+    .phase-title { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+    .phase-dates { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .phase-duration {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px; padding: 2px 10px;
+      font-size: 11px; font-weight: 600;
+      color: var(--phase-color, #4f8ef7);
+    }
+    .phase-progress { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-bottom: 18px; overflow: hidden; }
+    .phase-progress-bar {
+      height: 100%; border-radius: 4px;
+      background: var(--phase-color, #4f8ef7);
+      transition: width 1.2s cubic-bezier(0.22,1,0.36,1);
+    }
+    .phase-tasks { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .phase-tasks li {
+      display: flex; align-items: flex-start;
+      gap: 10px; font-size: 13px; color: #c8d2e0; line-height: 1.55;
+    }
+    .phase-tasks li::before {
+      content: '';
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--phase-color, #4f8ef7);
+      flex-shrink: 0; margin-top: 7px;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center; padding: 40px 24px;
+      color: var(--muted); font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+    footer strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="badge">TRY-FIT Clothing &middot; BCA SEM 5</div>
+  <h1>Software Development<br/>Life Cycle (SDLC)</h1>
+  <p>A structured timeline of the TRY-FIT Clothing project — from planning through deployment and final submission.</p>
+  <div class="timeline-label">
+    &#x1F4C5;&nbsp;<span>June 15, 2025</span>&nbsp;&rarr;&nbsp;<span>October 25, 2025</span>&nbsp;&nbsp;|&nbsp;&nbsp;<span>~133 Days Total</span>
+  </div>
+</section>
+
+<!-- ══ OVERVIEW BAR ══ -->
+<section class="overview-section">
+  <div class="container">
+    <div class="section-title" style="margin-bottom:28px;">
+      <h2>Project Timeline Overview</h2>
+      <p>All 7 phases mapped proportionally across the full project duration</p>
+    </div>
+    <div class="overview-bar">
+      <div class="overview-segment" style="width:7.5%;background:var(--planning);">
+        <span class="seg-label">Plan</span>
+        <div class="seg-tooltip">Planning &bull; 10 days</div>
+      </div>
+      <div class="overview-segment" style="width:7.5%;background:var(--req);">
+        <span class="seg-label">Req.</span>
+        <div class="seg-tooltip">Requirement Analysis &bull; 10 days</div>
+      </div>
+      <div class="overview-segment" style="width:11.3%;background:var(--design);">
+        <span class="seg-label">Design</span>
+        <div class="seg-tooltip">System Design &bull; 15 days</div>
+      </div>
+      <div class="overview-segment" style="width:37.6%;background:var(--coding);">
+        <span class="seg-label">Implementation / Coding</span>
+        <div class="seg-tooltip">Implementation / Coding &bull; ~50 days</div>
+      </div>
+      <div class="overview-segment" style="width:15%;background:var(--testing);">
+        <span class="seg-label">Testing</span>
+        <div class="seg-tooltip">Testing &amp; Integration &bull; 20 days</div>
+      </div>
+      <div class="overview-segment" style="width:7.5%;background:var(--deployment);">
+        <span class="seg-label">Deploy</span>
+        <div class="seg-tooltip">Deployment &bull; 10 days</div>
+      </div>
+      <div class="overview-segment" style="width:11.3%;background:var(--doc);">
+        <span class="seg-label">Docs</span>
+        <div class="seg-tooltip">Documentation &amp; Submission &bull; 15 days</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PIE CHART ══ -->
+<section class="chart-section">
+  <div class="container">
+    <div class="section-title">
+      <h2>SDLC Phase Distribution</h2>
+      <p>Interactive pie chart — hover or click a slice to explore each phase</p>
+    </div>
+    <div class="charts-row">
+
+      <!-- SVG Pie -->
+      <div class="pie-wrap">
+        <div class="pie-svg-container">
+          <svg id="sdlcPie" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <!-- slices drawn by JS -->
+            <circle cx="160" cy="160" r="68" fill="#0f1628" />
+          </svg>
+          <div class="pie-center-label">
+            <div class="pie-center-pct" id="centerPct">SDLC</div>
+            <div class="pie-center-name" id="centerName">Hover a slice</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend" id="pieLegend"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ BAR CHART ══ -->
+<section class="bar-section">
+  <div class="container">
+    <div class="section-title">
+      <h2>Days Per Phase</h2>
+      <p>Proportional duration of each SDLC phase across the 133-day timeline</p>
+    </div>
+    <div class="bar-chart" id="barChart"></div>
+  </div>
+</section>
+
+<!-- ══ PHASE CARDS ══ -->
+<section class="phases-section">
+  <div class="container">
+    <div class="section-title">
+      <h2>All 7 SDLC Phases</h2>
+      <p>Detailed breakdown of tasks, deliverables, and timelines</p>
+    </div>
+    <div class="phases-grid">
+
+      <div class="phase-card" style="--phase-color:var(--planning);border-color:rgba(79,142,247,.25)">
+        <div class="phase-header">
+          <div class="phase-num">1</div>
+          <div class="phase-meta">
+            <div class="phase-title">Planning</div>
+            <div class="phase-dates">June 15 – June 25 <span class="phase-duration">10 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="10" style="width:0"></div></div>
+        <ul class="phase-tasks">
+          <li>Define project topic &amp; objectives.</li>
+          <li>Identify scope (what to include/exclude).</li>
+          <li>Assign roles in the team.</li>
+          <li>Decide tools/tech (language, DB, IDE).</li>
+        </ul>
+      </div>
+
+      <div class="phase-card" style="--phase-color:var(--req);border-color:rgba(244,126,66,.25)">
+        <div class="phase-header">
+          <div class="phase-num" style="background:var(--req)">2</div>
+          <div class="phase-meta">
+            <div class="phase-title">Requirement Analysis</div>
+            <div class="phase-dates">June 26 – July 5 <span class="phase-duration" style="color:var(--req)">10 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="10" style="width:0;background:var(--req)"></div></div>
+        <ul class="phase-tasks">
+          <li>Collect requirements from guides/mentors.</li>
+          <li>Prepare SRS (Software Requirement Specification).</li>
+          <li>Finalize project modules &amp; features.</li>
+        </ul>
+      </div>
+
+      <div class="phase-card" style="--phase-color:var(--design);border-color:rgba(232,93,93,.25)">
+        <div class="phase-header">
+          <div class="phase-num" style="background:var(--design)">3</div>
+          <div class="phase-meta">
+            <div class="phase-title">System Design</div>
+            <div class="phase-dates">July 6 – July 20 <span class="phase-duration" style="color:var(--design)">15 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="15" style="width:0;background:var(--design)"></div></div>
+        <ul class="phase-tasks">
+          <li>Create ER diagrams, DFDs, UML diagrams.</li>
+          <li>Design database schema.</li>
+          <li>Sketch user interface (wireframes).</li>
+        </ul>
+      </div>
+
+      <div class="phase-card" style="--phase-color:var(--coding);border-color:rgba(94,203,110,.25)">
+        <div class="phase-header">
+          <div class="phase-num" style="background:var(--coding)">4</div>
+          <div class="phase-meta">
+            <div class="phase-title">Implementation / Coding</div>
+            <div class="phase-dates">July 21 – Sept 10 <span class="phase-duration" style="color:var(--coding)">~50 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="40" style="width:0;background:var(--coding)"></div></div>
+        <ul class="phase-tasks">
+          <li>Divide modules among team members.</li>
+          <li>Start coding (Frontend + Backend + DB).</li>
+          <li>Conduct unit testing of each module.</li>
+        </ul>
+      </div>
+
+      <div class="phase-card" style="--phase-color:var(--testing);border-color:rgba(155,111,212,.25)">
+        <div class="phase-header">
+          <div class="phase-num" style="background:var(--testing)">5</div>
+          <div class="phase-meta">
+            <div class="phase-title">Testing &amp; Integration</div>
+            <div class="phase-dates">Sept 11 – Sept 30 <span class="phase-duration" style="color:var(--testing)">20 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="20" style="width:0;background:var(--testing)"></div></div>
+        <ul class="phase-tasks">
+          <li>Integrate all modules.</li>
+          <li>Do system testing (functional, usability, security).</li>
+          <li>Debug &amp; fix errors.</li>
+          <li>Prepare test report.</li>
+        </ul>
+      </div>
+
+      <div class="phase-card" style="--phase-color:var(--deployment);border-color:rgba(62,201,214,.25)">
+        <div class="phase-header">
+          <div class="phase-num" style="background:var(--deployment)">6</div>
+          <div class="phase-meta">
+            <div class="phase-title">Deployment / Finalization</div>
+            <div class="phase-dates">Oct 1 – Oct 10 <span class="phase-duration" style="color:var(--deployment)">10 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="10" style="width:0;background:var(--deployment)"></div></div>
+        <ul class="phase-tasks">
+          <li>Deploy on system (or demo environment).</li>
+          <li>Ensure all features work as expected.</li>
+          <li>Take feedback from faculty/peers.</li>
+        </ul>
+      </div>
+
+      <div class="phase-card" style="--phase-color:var(--doc);border-color:rgba(240,168,53,.25)">
+        <div class="phase-header">
+          <div class="phase-num" style="background:var(--doc)">7</div>
+          <div class="phase-meta">
+            <div class="phase-title">Documentation &amp; Submission Prep</div>
+            <div class="phase-dates">Oct 11 – Oct 25 <span class="phase-duration" style="color:var(--doc)">15 Days</span></div>
+          </div>
+        </div>
+        <div class="phase-progress"><div class="phase-progress-bar" data-w="15" style="width:0;background:var(--doc)"></div></div>
+        <ul class="phase-tasks">
+          <li>Complete final project report.</li>
+          <li>Add diagrams, screenshots, testing results.</li>
+          <li>Prepare PPT for viva/demo.</li>
+          <li>Final review &amp; submission.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>Prepared by: <strong>Akash Pol, Keyur Vagadiya &amp; Harsh Vara</strong> &nbsp;|&nbsp; BCA SEM 5 &nbsp;|&nbsp; TRY-FIT Clothing Project</p>
+</footer>
+
+<!-- Floating tooltip -->
+<div id="pieTooltip">
+  <div class="tt-name" id="ttName"></div>
+  <div class="tt-pct"  id="ttPct"></div>
+  <div class="tt-days" id="ttDays"></div>
+</div>
+
+<script>
+/* ════════════════════════════════════
+   DATA
+════════════════════════════════════ */
+const phases = [
+  { name: 'Planning & Requirement', short: 'Planning',     color: '#4f8ef7', pct: 16, days: 20,  date: 'Jun 15 – Jul 5'  },
+  { name: 'System Design',          short: 'System Design', color: '#e85d5d', pct: 12, days: 15,  date: 'Jul 6 – Jul 20'  },
+  { name: 'Coding',                 short: 'Coding',        color: '#5ecb6e', pct: 40, days: 50,  date: 'Jul 21 – Sep 10' },
+  { name: 'Testing',                short: 'Testing',       color: '#9b6fd4', pct: 16, days: 20,  date: 'Sep 11 – Sep 30' },
+  { name: 'Deployment',             short: 'Deployment',    color: '#3ec9d6', pct: 16, days: 28,  date: 'Oct 1 – Oct 25'  },
+];
+
+const allPhases = [
+  { name: 'Planning',                color: '#4f8ef7', days: 10  },
+  { name: 'Requirement Analysis',    color: '#f47e42', days: 10  },
+  { name: 'System Design',           color: '#e85d5d', days: 15  },
+  { name: 'Implementation / Coding', color: '#5ecb6e', days: 50  },
+  { name: 'Testing & Integration',   color: '#9b6fd4', days: 20  },
+  { name: 'Deployment / Finalization',color:'#3ec9d6', days: 10  },
+  { name: 'Documentation & Submission',color:'#f0a835',days: 15  },
+];
+
+/* ════════════════════════════════════
+   PIE CHART (SVG)
+════════════════════════════════════ */
+const svg   = document.getElementById('sdlcPie');
+const cx    = 160, cy = 160, R = 130, inner = 62;
+const total = phases.reduce((s, p) => s + p.pct, 0);
+
+function polarToXY(cx, cy, r, angleDeg) {
+  const a = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+
+function makeArcPath(cx, cy, outerR, innerR, startDeg, endDeg) {
+  const s1 = polarToXY(cx, cy, outerR, startDeg);
+  const e1 = polarToXY(cx, cy, outerR, endDeg);
+  const s2 = polarToXY(cx, cy, innerR, endDeg);
+  const e2 = polarToXY(cx, cy, innerR, startDeg);
+  const large = (endDeg - startDeg > 180) ? 1 : 0;
+  return [
+    `M ${s1.x} ${s1.y}`,
+    `A ${outerR} ${outerR} 0 ${large} 1 ${e1.x} ${e1.y}`,
+    `L ${s2.x} ${s2.y}`,
+    `A ${innerR} ${innerR} 0 ${large} 0 ${e2.x} ${e2.y}`,
+    'Z'
+  ].join(' ');
+}
+
+function makeLabelPos(cx, cy, startDeg, endDeg, r) {
+  const mid = (startDeg + endDeg) / 2;
+  return polarToXY(cx, cy, r, mid);
+}
+
+// Add text drop-shadow filter to SVG defs
+const defs = svg.querySelector('defs');
+const textFilter = document.createElementNS('http://www.w3.org/2000/svg','filter');
+textFilter.setAttribute('id','textShadow');
+textFilter.setAttribute('x','-20%'); textFilter.setAttribute('y','-20%');
+textFilter.setAttribute('width','140%'); textFilter.setAttribute('height','140%');
+textFilter.innerHTML = `
+  <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.9)" flood-opacity="1"/>
+`;
+defs.appendChild(textFilter);
+
+const tooltip   = document.getElementById('pieTooltip');
+const ttName    = document.getElementById('ttName');
+const ttPct     = document.getElementById('ttPct');
+const ttDays    = document.getElementById('ttDays');
+const centerPct = document.getElementById('centerPct');
+const centerName= document.getElementById('centerName');
+const legend    = document.getElementById('pieLegend');
+
+let activeSlice = null;
+let startAngle  = 0;
+
+phases.forEach((ph, i) => {
+  const endAngle = startAngle + (ph.pct / total) * 360;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', makeArcPath(cx, cy, R, inner, startAngle, endAngle));
+  path.setAttribute('fill', ph.color);
+  path.setAttribute('stroke', '#0a0e1a');
+  path.setAttribute('stroke-width', '2');
+  path.classList.add('pie-slice');
+  path.dataset.index = i;
+
+  // Pct label — inserted BEFORE the donut-hole circle so it appears on top of slice but under nothing
+  const lp = makeLabelPos(cx, cy, startAngle, endAngle, (R + inner) / 2);
+
+  // Background pill for readability
+  const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bgRect.setAttribute('x',  lp.x - 18);
+  bgRect.setAttribute('y',  lp.y - 10);
+  bgRect.setAttribute('width',  36);
+  bgRect.setAttribute('height', 20);
+  bgRect.setAttribute('rx', 10);
+  bgRect.setAttribute('fill', 'rgba(0,0,0,0.45)');
+  bgRect.setAttribute('pointer-events', 'none');
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', lp.x);
+  text.setAttribute('y', lp.y + 1);
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'middle');
+  text.setAttribute('fill', '#ffffff');
+  text.setAttribute('font-size', '14');
+  text.setAttribute('font-weight', '800');
+  text.setAttribute('font-family', 'Outfit, sans-serif');
+  text.setAttribute('pointer-events', 'none');
+  text.setAttribute('filter', 'url(#textShadow)');
+  text.textContent = ph.pct + '%';
+
+  // Insert slice before donut hole circle
+  const holeCircle = svg.querySelector('circle');
+  svg.insertBefore(path, holeCircle);
+  // Insert label group AFTER the hole circle so labels are on top
+  svg.appendChild(bgRect);
+  svg.appendChild(text);
+
+  // Hover / click events
+  function activate() {
+    if (activeSlice !== null) {
+      svg.querySelectorAll('.pie-slice')[activeSlice].classList.remove('active');
+      legend.querySelectorAll('.legend-item')[activeSlice].classList.remove('active');
+    }
+    path.classList.add('active');
+    legend.querySelectorAll('.legend-item')[i].classList.add('active');
+    activeSlice = i;
+    centerPct.textContent  = ph.pct + '%';
+    centerName.textContent = ph.short;
+    centerPct.style.color  = ph.color;
+  }
+
+  path.addEventListener('mouseenter', (e) => {
+    activate();
+    ttName.textContent = ph.name;
+    ttPct.textContent  = ph.pct + '%';
+    ttPct.style.color  = ph.color;
+    ttDays.textContent = ph.days + ' days  ·  ' + ph.date;
+    tooltip.classList.add('visible');
+  });
+  path.addEventListener('mousemove', (e) => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 14) + 'px';
+  });
+  path.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('visible');
+  });
+  path.addEventListener('click', activate);
+
+  // Legend item
+  const li = document.createElement('div');
+  li.className = 'legend-item';
+  li.style.setProperty('--item-color', ph.color);
+  li.innerHTML = `
+    <div class="legend-dot" style="background:${ph.color}"></div>
+    <div class="legend-text">
+      <div class="name">${ph.name}</div>
+      <div class="sub">${ph.date} &nbsp;&bull;&nbsp; ${ph.days} days</div>
+    </div>
+    <div class="legend-pct" style="color:${ph.color}">${ph.pct}%</div>
+  `;
+  li.addEventListener('click', () => {
+    activate();
+    path.dispatchEvent(new MouseEvent('mouseenter'));
+  });
+  legend.appendChild(li);
+
+  startAngle = endAngle;
+});
+
+/* ════════════════════════════════════
+   BAR CHART
+════════════════════════════════════ */
+const maxDays   = Math.max(...allPhases.map(p => p.days));
+const barChart  = document.getElementById('barChart');
+
+allPhases.forEach((ph, i) => {
+  const widthPct = (ph.days / maxDays) * 100;
+  const row = document.createElement('div');
+  row.className = 'bar-row';
+  row.innerHTML = `
+    <div class="bar-label">${ph.name}</div>
+    <div class="bar-track">
+      <div class="bar-fill" data-w="${widthPct}" style="width:0;background:${ph.color}">
+        <span class="bar-inner-label">${ph.days} days</span>
+      </div>
+    </div>
+    <div class="bar-days" style="color:${ph.color}">${ph.days}d</div>
+  `;
+  barChart.appendChild(row);
+});
+
+/* ════════════════════════════════════
+   SCROLL ANIMATIONS
+════════════════════════════════════ */
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    // phase progress bars
+    e.target.querySelectorAll('.phase-progress-bar[data-w]').forEach(bar => {
+      bar.style.width = bar.dataset.w + '%';
+    });
+    // bar chart fills
+    e.target.querySelectorAll('.bar-fill[data-w]').forEach(bar => {
+      bar.style.width = bar.dataset.w + '%';
+    });
+    io.unobserve(e.target);
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.phase-card').forEach(c => io.observe(c));
+io.observe(barChart);
+</script>
+</body>
+</html>
